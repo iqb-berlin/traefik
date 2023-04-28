@@ -1,0 +1,51 @@
+x-env-logging: &env-logging
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  traefik:
+    image: traefik:2.10
+    ports:
+      - "${HTTP_PORT}:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - traefik-network
+      - application-network
+
+  prometheus:
+    image: prom/prometheus:v2.43.0
+    restart: on-failure
+    volumes:
+      - ./config/prometheus/:/etc/prometheus/
+      - prometheus_vol:/prometheus
+    networks:
+      - application-network
+    logging:
+      <<: *env-logging
+
+  grafana:
+    image: grafana/grafana:9.5.1
+    depends_on:
+      - prometheus
+    restart: on-failure
+    env_file:
+      - ./config/grafana/config.monitoring
+    volumes:
+      - grafana_vol:/var/lib/grafana
+      - ./config/grafana/provisioning/:/etc/grafana/provisioning/
+    networks:
+      - application-network
+    logging:
+      <<: *env-logging
+
+volumes:
+  prometheus_vol:
+  grafana_vol:
+
+networks:
+  application-network:
+    name: app-net
+  traefik-network:
+    name: traefik-net
