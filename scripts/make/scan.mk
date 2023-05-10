@@ -6,7 +6,7 @@ TRIVY_VERSION := aquasec/trivy:0.41.0
 
 include $(BASE_DIR)/.env.dev
 
-## exports all variables (especially those of the included .env.prod file!)
+## exports all variables (especially those of the included .env.dev file!)
 .EXPORT_ALL_VARIABLES:
 
 ## prevents collisions of make target names with possible file names

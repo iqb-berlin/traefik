@@ -37,25 +37,25 @@ lint-shellscript:
 lint-yaml:
 	$(MAKE) -f $(MK_FILE_DIR)/lint.mk -C $(MK_FILE_DIR) $@
 
-prod-ramp-up:
+traefik-up:
 	$(MAKE) -f $(MK_FILE_DIR)/prod.mk -C $(MK_FILE_DIR) $@
-prod-shut-down:
+traefik-down:
 	$(MAKE) -f $(MK_FILE_DIR)/prod.mk -C $(MK_FILE_DIR) $@
-prod-start:
+traefik-start:
 	$(MAKE) -f $(MK_FILE_DIR)/prod.mk -C $(MK_FILE_DIR) $@
-prod-stop:
+traefik-stop:
 	$(MAKE) -f $(MK_FILE_DIR)/prod.mk -C $(MK_FILE_DIR) $@
-prod-status:
+traefik-status:
 	$(MAKE) -f $(MK_FILE_DIR)/prod.mk -C $(MK_FILE_DIR) $@
-prod-logs:
+traefik-logs:
 	$(MAKE) -f $(MK_FILE_DIR)/prod.mk -C $(MK_FILE_DIR) $@
-prod-config:
+traefik-config:
 	$(MAKE) -f $(MK_FILE_DIR)/prod.mk -C $(MK_FILE_DIR) $@
-prod-system-prune:
+traefik-system-prune:
 	$(MAKE) -f $(MK_FILE_DIR)/prod.mk -C $(MK_FILE_DIR) $@
-prod-volumes-prune:
+traefik-volumes-prune:
 	$(MAKE) -f $(MK_FILE_DIR)/prod.mk -C $(MK_FILE_DIR) $@
-prod-images-clean:
+traefik-images-clean:
 	$(MAKE) -f $(MK_FILE_DIR)/prod.mk -C $(MK_FILE_DIR) $@
 
 scan-all:

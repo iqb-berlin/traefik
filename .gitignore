@@ -27,4 +27,4 @@ Thumbs.db
 *.key
 
 # Environment Files
-.env.prod
+.env.traefik
