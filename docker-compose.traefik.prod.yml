@@ -32,8 +32,8 @@ services:
       - "${HTTPS_PORT}:443"
     volumes:
       - ./config/traefik/tls-config.yml:/config/tls-config.yml
-      - ./secrets/traefik/studio-lite.crt:/secrets/studio-lite.crt:ro
-      - ./secrets/traefik/studio-lite.key:/secrets/studio-lite.key:ro
+      - ./secrets/traefik/certificate.pem:/secrets/certificate.pem:ro
+      - ./secrets/traefik/privkey.pem:/secrets/privkey.pem:ro
 
   prometheus:
     labels:

@@ -1,10 +1,5 @@
 BASE_DIR := $(shell git rev-parse --show-toplevel)
 
-include $(BASE_DIR)/.env.traefik
-
-## exports all variables (especially those of the included .env.traefik file!)
-.EXPORT_ALL_VARIABLES:
-
 ## prevents collisions of make target names with possible file names
 .PHONY: traefik-up traefik-down traefik-start traefik-stop traefik-status traefik-logs traefik-config\
 	traefik-system-prune traefik-volumes-prune traefik-images-clean
@@ -15,18 +10,18 @@ include $(BASE_DIR)/.env.traefik
 ## Pull newest images, create and start docker containers
 traefik-up:
 	@if\
-		! test -f $(BASE_DIR)/secrets/traefik/studio-lite.crt ||\
-		! test -f $(BASE_DIR)/secrets/traefik/studio-lite.key ||\
-		! command openssl x509 -in $(BASE_DIR)/secrets/traefik/studio-lite.crt -text -noout >/dev/null 2>&1 ||\
-		! command openssl rsa -in $(BASE_DIR)/secrets/traefik/studio-lite.key -check >/dev/null 2>&1;\
+		! test -f $(BASE_DIR)/secrets/traefik/certificate.pem ||\
+		! test -f $(BASE_DIR)/secrets/traefik/privkey.pem ||\
+		! command openssl x509 -in $(BASE_DIR)/secrets/traefik/certificate.pem -text -noout >/dev/null 2>&1 ||\
+		! command openssl rsa -in $(BASE_DIR)/secrets/traefik/privkey.pem -check >/dev/null 2>&1;\
 				then\
 					echo "===============================================";\
 					echo "No SSL certificate and/or key available!";\
 					echo "Generating a 1-day self-signed certificate ...";\
 					openssl req\
 							 -newkey rsa:2048 -nodes -subj "/CN=$(SERVER_NAME)"\
-							 -keyout $(BASE_DIR)/secrets/traefik/studio-lite.key\
-							 -x509 -days 1 -out $(BASE_DIR)/secrets/traefik/studio-lite.crt;\
+							 -keyout $(BASE_DIR)/secrets/traefik/privkey.pem\
+							 -x509 -days 1 -out $(BASE_DIR)/secrets/traefik/certificate.pem;\
 					echo "Self-signed 1-day certificate created.";\
 					echo "===============================================";\
 	fi
