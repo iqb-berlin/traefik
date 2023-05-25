@@ -25,7 +25,6 @@ services:
       - "traefik.http.middlewares.traefik-auth.basicauth.removeheader=true"
       - "traefik.http.middlewares.security-headers.headers.contentTypeNosniff=true"
       - "traefik.http.middlewares.security-headers.headers.customFrameOptionsValue=SAMEORIGIN"
-      - "traefik.http.middlewares.security-headers.headers.contentSecurityPolicy=frame-ancestors 'self'"
       - "traefik.http.middlewares.security-headers.headers.stsSeconds=31536000"
       - "traefik.http.middlewares.security-headers.headers.stsIncludeSubdomains=true"
     ports:
