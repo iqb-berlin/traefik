@@ -323,10 +323,10 @@ main() {
 
   if [ -z "$SELECTED_VERSION" ]; then
     printf "Update script started ...\n\n"
-    printf "1. Update %s\n" $APP_NAME
-    printf "2. Update the self-signed TLS certificate valid for 30 days\n"
-    printf "3. Update the %s administrator credentials\n\n" $APP_NAME
-    printf "4. Exit update script\n\n"
+    printf "[1] Update %s\n" $APP_NAME
+    printf "[2] Update the self-signed TLS certificate valid for 30 days\n"
+    printf "[3] Update the %s administrator credentials\n\n" $APP_NAME
+    printf "[4] Exit update script\n\n"
 
     while read -p 'What do you want to do? [1-4] ' -er -n 1 CHOICE; do
       if [ "$CHOICE" = 1 ]; then
