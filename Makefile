@@ -1,5 +1,5 @@
-BASE_DIR := $(shell git rev-parse --show-toplevel)
-MK_FILE_DIR := $(BASE_DIR)/scripts/make
+TRAEFIK_BASE_DIR := $(shell git rev-parse --show-toplevel)
+MK_FILE_DIR := $(TRAEFIK_BASE_DIR)/scripts/make
 
 dev-up:
 	$(MAKE) -f $(MK_FILE_DIR)/dev.mk -C $(MK_FILE_DIR) $@

@@ -1,4 +1,4 @@
-BASE_DIR := $(shell git rev-parse --show-toplevel)
+TRAEFIK_BASE_DIR := $(shell git rev-parse --show-toplevel)
 
 ## prevents collisions of make target names with possible file names
 .PHONY: dev-up dev-down dev-start dev-stop dev-status dev-logs dev-config dev-system-prune dev-volumes-prune\
@@ -9,36 +9,36 @@ BASE_DIR := $(shell git rev-parse --show-toplevel)
 
 ## Create and start all docker containers
 dev-up:
-	docker compose --env-file $(BASE_DIR)/.env.dev up -d
+	docker compose --env-file $(TRAEFIK_BASE_DIR)/.env.dev up -d
 
 ## Stop and remove all docker containers, preserve data volumes
 dev-down:
-	docker compose --env-file $(BASE_DIR)/.env.dev down
+	docker compose --env-file $(TRAEFIK_BASE_DIR)/.env.dev down
 
 ## Start docker containers
 # Param (optional): SERVICE - Start the specified service only, e.g. `make dev-start SERVICE=grafana`
 dev-start:
-	docker compose --env-file $(BASE_DIR)/.env.dev start $(SERVICE)
+	docker compose --env-file $(TRAEFIK_BASE_DIR)/.env.dev start $(SERVICE)
 
 ## Stop docker containers
 # Param (optional): SERVICE - Stop the specified service only, e.g. `make dev-stop SERVICE=grafana`
 dev-stop:
-	docker compose --env-file $(BASE_DIR)/.env.dev stop $(SERVICE)
+	docker compose --env-file $(TRAEFIK_BASE_DIR)/.env.dev stop $(SERVICE)
 
 ## Show status of containers
 # Param (optional): SERVICE - Show status of the specified service only, e.g. `make dev-status SERVICE=grafana`
 dev-status:
-	docker compose --env-file $(BASE_DIR)/.env.dev ps -a $(SERVICE)
+	docker compose --env-file $(TRAEFIK_BASE_DIR)/.env.dev ps -a $(SERVICE)
 
 ## Show service logs
 # Param (optional): SERVICE - Show log of the specified service only, e.g. `make dev-logs SERVICE=grafana`
 dev-logs:
-	docker compose --env-file $(BASE_DIR)/.env.dev logs -f $(SERVICE)
+	docker compose --env-file $(TRAEFIK_BASE_DIR)/.env.dev logs -f $(SERVICE)
 
 ## Show services configuration
 # Param (optional): SERVICE - Show config of the specified service only, e.g. `make dev-config SERVICE=grafana`
 dev-config:
-	docker compose --env-file $(BASE_DIR)/.env.dev config $(SERVICE)
+	docker compose --env-file $(TRAEFIK_BASE_DIR)/.env.dev config $(SERVICE)
 
 ## Remove all stopped containers, all unused networks, all dangling images, and all dangling cache
 dev-system-prune:
@@ -51,8 +51,8 @@ dev-volumes-prune:
 ## Remove all unused data volumes
 # Be very careful, all data could be lost!!!
 dev-volumes-clean:
-	if test "$(shell docker volume ls -f name=grafana -f name=prometheus -q)";\
-		then docker volume rm $(shell docker volume ls -f name=grafana -f name=prometheus -q);\
+	if test "$(shell docker volume ls -f name=grafana -f name=prometheus -q)"; then\
+		docker volume rm $(shell docker volume ls -f name=grafana -f name=prometheus -q);\
 	fi
 
 ## Remove all unused (not just dangling) images!

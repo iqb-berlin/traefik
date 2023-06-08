@@ -1,10 +1,10 @@
-BASE_DIR := $(shell git rev-parse --show-toplevel)
-TRAEFIK_IMAGE := $(shell docker compose --env-file $(BASE_DIR)/.env.dev config --images | grep traefik)
-PROMETHEUS_IMAGE := $(shell docker compose --env-file $(BASE_DIR)/.env.dev config --images | grep prometheus)
-GRAFANA_IMAGE := $(shell docker compose --env-file $(BASE_DIR)/.env.dev config --images | grep grafana)
+TRAEFIK_BASE_DIR := $(shell git rev-parse --show-toplevel)
+TRAEFIK_IMAGE := $(shell docker compose --env-file $(TRAEFIK_BASE_DIR)/.env.dev config --images | grep traefik)
+PROMETHEUS_IMAGE := $(shell docker compose --env-file $(TRAEFIK_BASE_DIR)/.env.dev config --images | grep prometheus)
+GRAFANA_IMAGE := $(shell docker compose --env-file $(TRAEFIK_BASE_DIR)/.env.dev config --images | grep grafana)
 TRIVY_VERSION := aquasec/trivy:0.41.0
 
-include $(BASE_DIR)/.env.dev
+include $(TRAEFIK_BASE_DIR)/.env.dev
 
 ## exports all variables (especially those of the included .env.dev file!)
 .EXPORT_ALL_VARIABLES:

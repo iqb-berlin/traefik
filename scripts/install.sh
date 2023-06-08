@@ -140,7 +140,7 @@ customize_settings() {
   sed -i "s#IQB_TRAEFIK_VERSION_TAG.*#IQB_TRAEFIK_VERSION_TAG=$TARGET_TAG#" .env.traefik
 
   # Setup makefiles
-  sed -i "s#BASE_DIR :=.*#BASE_DIR := \\$TARGET_DIR#" scripts/traefik.mk
+  sed -i "s#TRAEFIK_BASE_DIR :=.*#TRAEFIK_BASE_DIR := \\$TARGET_DIR#" scripts/traefik.mk
   echo "include scripts/traefik.mk" >Makefile
 
   # Generate TLS files

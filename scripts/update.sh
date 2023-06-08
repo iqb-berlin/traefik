@@ -199,8 +199,8 @@ check_template_files_modifications() {
 }
 
 customize_settings() {
-  # Set application BASE_DIR
-  sed -i "s#BASE_DIR :=.*#BASE_DIR := \.#" scripts/traefik.mk
+  # Set application TRAEFIK_BASE_DIR
+  sed -i "s#TRAEFIK_BASE_DIR :=.*#TRAEFIK_BASE_DIR := \.#" scripts/traefik.mk
 
   # write chosen version tag to env file
   sed -i "s#IQB_TRAEFIK_VERSION_TAG.*#IQB_TRAEFIK_VERSION_TAG=$TARGET_TAG#" .env.traefik
