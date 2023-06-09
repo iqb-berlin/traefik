@@ -187,7 +187,7 @@ application_start() {
 }
 
 main() {
-  printf 'Installation script started ...\n\n'
+  printf '%s Installation script started ...\n\n' $APP_NAME | tr '[:lower:]' '[:upper:]'
 
   check_prerequisites
 
