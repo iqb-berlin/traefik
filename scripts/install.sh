@@ -9,31 +9,35 @@ REQUIRED_PACKAGES=("docker -v" "docker compose version")
 OPTIONAL_PACKAGES=("make -v")
 
 check_prerequisites() {
-  printf "1. Checking prerequisites "
+  printf "1. Checking prerequisites:\n\n"
 
-  for APP in "${REQUIRED_PACKAGES[@]}"; do
-    {
-      $APP >/dev/null 2>&1
-      printf '.'
-    } || {
-      echo "$APP not found, please install before running!"
+  printf "1.1 Checking required packages ...\n"
+  # Check required packages are installed
+  for REQ_PACKAGE in "${REQUIRED_PACKAGES[@]}"; do
+    if $REQ_PACKAGE >/dev/null 2>&1; then
+      printf -- "- '%s' is working.\n" "$REQ_PACKAGE"
+    else
+      printf "'%s' not working, please install the corresponding package before running!\n" "$REQ_PACKAGE"
       exit 1
-    }
+    fi
   done
+  printf "Required packages successfully checked.\n\n"
 
-  for APP in "${OPTIONAL_PACKAGES[@]}"; do
-    {
-      $APP >/dev/null 2>&1
-      printf '.'
-    } || {
-      echo "$APP not found! It is recommended to have it installed."
-      read -p 'Continue anyway [y/N]? ' -er -n 1 CONTINUE
+  # Check optional packages are installed
+  printf "1.2 Checking optional packages ...\n"
+  for OPT_PACKAGE in "${OPTIONAL_PACKAGES[@]}"; do
+    if $OPT_PACKAGE >/dev/null 2>&1; then
+      printf -- "- '%s' is working.\n" "$OPT_PACKAGE"
+    else
+      printf "%s not working! It is recommended to have the corresponding package installed.\n" "$OPT_PACKAGE"
+      read -p 'Continue anyway? [y/N] ' -er -n 1 CONTINUE
 
       if [[ ! $CONTINUE =~ ^[yY]$ ]]; then
         exit 1
       fi
-    }
+    fi
   done
+  printf "Optional packages successfully checked.\n\n"
 
   printf "\nPrerequisites check finished successfully.\n\n"
 }
@@ -43,7 +47,7 @@ get_release_version() {
 
   while read -p '2. Name the desired release tag: ' -er -i "$LATEST_RELEASE" TARGET_TAG; do
     if ! curl --head --silent --fail --output /dev/null $REPO_URL/"$TARGET_TAG"/README.md 2>/dev/null; then
-      echo "This version tag does not exist."
+      printf "This version tag does not exist.\n"
     else
       break
     fi
@@ -60,7 +64,7 @@ prepare_installation_dir() {
     elif [ -d "$TARGET_DIR" ] && [ -z "$(find "$TARGET_DIR" -maxdepth 0 -type d -empty 2>/dev/null)" ]; then
       read -p "You have selected a non empty directory. Continue anyway? [y/N] " -er -n 1 CONTINUE
       if [[ ! $CONTINUE =~ ^[yY]$ ]]; then
-        echo 'Installation script finished.'
+        printf "'%s' installation script finished.\n" $APP_NAME
         exit 0
       fi
 
@@ -90,13 +94,13 @@ download_file() {
 
   else
     printf -- "- File '%s' download failed.\n\n" "$1"
-    echo 'Install script finished with error'
+    printf "'%s' installation script finished with error.\n" $APP_NAME
     exit 1
   fi
 }
 
 download_files() {
-  echo "4. Downloading files:"
+  printf "4. Downloading files:\n"
 
   download_file docker-compose.traefik.yml docker-compose.yml
   download_file docker-compose.traefik.prod.yml docker-compose.traefik.prod.yml
@@ -141,7 +145,11 @@ customize_settings() {
 
   # Setup makefiles
   sed -i "s#TRAEFIK_BASE_DIR :=.*#TRAEFIK_BASE_DIR := \\$TARGET_DIR#" scripts/traefik.mk
-  echo "include scripts/traefik.mk" >Makefile
+  if [ -f Makefile ]; then
+    printf "include %s/scripts/traefik.mk\n" "$TARGET_DIR" >>Makefile
+  else
+    printf "include %s/scripts/traefik.mk\n" "$TARGET_DIR" >Makefile
+  fi
 
   # Generate TLS files
   printf "\n"
@@ -167,27 +175,30 @@ customize_settings() {
 }
 
 application_start() {
-  printf 'Installation done.\n\n'
+  printf "'%s' installation done.\n\n" $APP_NAME
 
   if command make -v >/dev/null 2>&1; then
     read -p "Do you want to start $APP_NAME now? [Y/n] " -er -n 1 START_NOW
+    printf '\n'
     if [[ ! $START_NOW =~ [nN] ]]; then
-      printf '\n'
       make traefik-up
     else
-      printf '\nInstallation script finished.\n'
+      printf "'%s' installation script finished.\n" $APP_NAME
       exit 0
     fi
 
   else
     printf 'You can start the docker services now.\n\n'
-    printf 'Installation script finished.\n'
+    printf "'%s' installation script finished.\n" $APP_NAME
     exit 0
   fi
 }
 
 main() {
-  printf '%s Installation script started ...\n\n' $APP_NAME | tr '[:lower:]' '[:upper:]'
+  printf "\n==================================================\n"
+  printf "'%s' installation script started ..." $APP_NAME | tr '[:lower:]' '[:upper:]'
+  printf "\n==================================================\n"
+  printf "\n"
 
   check_prerequisites
 

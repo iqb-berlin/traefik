@@ -8,6 +8,12 @@ REPO_API="https://api.github.com/repos/iqb-berlin/$APP_NAME"
 HAS_ENV_FILE_UPDATE=false
 HAS_CONFIG_FILE_UPDATE=false
 
+load_environment_variables() {
+  # Load current environment variables in .env.traefik
+  source .env.traefik
+  SOURCE_TAG=$IQB_TRAEFIK_VERSION_TAG
+}
+
 get_new_release_version() {
   LATEST_RELEASE=$(curl -s "$REPO_API"/releases/latest | grep tag_name | cut -d : -f 2,3 | tr -d \" | tr -d , | tr -d " ")
 
@@ -19,11 +25,11 @@ get_new_release_version() {
   printf "Latest available release: %s\n\n" "$LATEST_RELEASE"
 
   if [ "$SOURCE_TAG" = "$LATEST_RELEASE" ]; then
-    echo "Latest release is already installed!"
+    printf "Latest release is already installed!\n"
     read -p "Continue anyway? [Y/n] " -er -n 1 CONTINUE
 
     if [[ $CONTINUE =~ ^[nN]$ ]]; then
-      echo 'Update script finished.'
+      printf "'%s' update script finished.\n" $APP_NAME
       exit 0
     fi
 
@@ -32,7 +38,7 @@ get_new_release_version() {
 
   while read -p 'Name the desired version: ' -er -i "${LATEST_RELEASE}" TARGET_TAG; do
     if ! curl --head --silent --fail --output /dev/null $REPO_URL/"$TARGET_TAG"/README.md 2>/dev/null; then
-      echo "This version tag does not exist."
+      printf "This version tag does not exist.\n"
 
     else
       break
@@ -53,20 +59,20 @@ run_update_script_in_selected_version() {
 
   if [ ! -f "$CURRENT_UPDATE_SCRIPT" ] || ! curl --stderr /dev/null "$NEW_UPDATE_SCRIPT" | diff -q - "$CURRENT_UPDATE_SCRIPT" &>/dev/null; then
     if [ ! -f "$CURRENT_UPDATE_SCRIPT" ]; then
-      echo "Update script 'update_$APP_NAME.sh' does not exist!"
+      printf "Update script 'update_%s.sh' does not exist!\n" $APP_NAME
 
     elif ! curl --stderr /dev/null "$NEW_UPDATE_SCRIPT" | diff -q - "$CURRENT_UPDATE_SCRIPT" &>/dev/null; then
-      echo 'Update script has been modified in newer version!'
+      printf 'Update script has been modified in newer version!\n'
     fi
 
     printf "The running update script will download the desired update script, terminate itself, and start the new one!\n\n"
-    echo 'Downloading the desired update script ...'
+    printf 'Downloading the desired update script ...\n'
     if wget -q -O update_$APP_NAME.sh "$NEW_UPDATE_SCRIPT"; then
       chmod +x update_$APP_NAME.sh
-      echo 'Download successful!'
+      printf 'Download successful!\n'
     else
-      echo 'Download failed!'
-      echo 'Update script finished with error'
+      printf 'Download failed!\n'
+      printf "'%s' update script finished with error.\n" $APP_NAME
       exit 1
     fi
 
@@ -91,6 +97,7 @@ prepare_installation_dir() {
   mkdir -p ./config/traefik
   mkdir -p ./scripts
   mkdir -p ./secrets/traefik
+  rm Makefile
 }
 
 download_file() {
@@ -98,13 +105,13 @@ download_file() {
     printf -- "- File '%s' successfully downloaded.\n" "$1"
   else
     printf -- "- File '%s' download failed.\n\n" "$1"
-    echo 'Update script finished with error'
+    printf "'%s' update script finished with error.\n" $APP_NAME
     exit 1
   fi
 }
 
 update_files() {
-  echo "Downloading files ..."
+  printf "Downloading files ...\n"
 
   download_file docker-compose.traefik.yml docker-compose.yml
   download_file docker-compose.traefik.prod.yml docker-compose.traefik.prod.yml
@@ -114,7 +121,7 @@ update_files() {
 }
 
 get_modified_file() {
-  SOURCE_FILE=./backup/release/"$SOURCE_TAG"/"$1"
+  SOURCE_FILE="$1"
   TARGET_FILE=$REPO_URL/"$TARGET_TAG"/"$2"
   CURRENT_ENV_FILE=.env.traefik
   CURRENT_CONFIG_FILE=config/frontend/default.conf.template
@@ -126,27 +133,33 @@ get_modified_file() {
       if [ "$3" == "env-file" ]; then
         printf -- "- Environment template file '%s' does not exist anymore!\n" "$1"
         printf "  A version %s environment template file will be downloaded now.\n" "$TARGET_TAG"
-        printf "  Please compare your current '%s' file with the new template file and update it with new environment variables, or delete obsolete variables, if necessary.\n" $CURRENT_ENV_FILE
+        printf "  Please compare your current '%s' file with the new template file and update it " $CURRENT_ENV_FILE
+        printf "with new environment variables, or delete obsolete variables, if necessary.\n"
       fi
 
       if [ "$3" == "conf-file" ]; then
         printf -- "- Configuration template file '%s' does not exist anymore!\n" "$1"
         printf "  A version %s configuration template file will be downloaded now.\n" "$TARGET_TAG"
-        printf "  Please compare your current '%s' file with the new template file and update it, if necessary!\n" $CURRENT_CONFIG_FILE
+        printf "  Please compare your current '%s' file with the new template file and update it, " $CURRENT_CONFIG_FILE
+        printf "if necessary!\n"
       fi
 
     # source file and target file differ
     elif ! curl --stderr /dev/null "$TARGET_FILE" | diff -q - "$SOURCE_FILE" &>/dev/null; then
       if [ "$3" == "env-file" ]; then
-        printf -- "- A new version of the current environment template file '%s' is available and will be downloaded now!\n" "$1"
-        printf "  Please compare your current '%s' file with the new template file and update it with new environment variables, or delete obsolete variables, if necessary.\n" $CURRENT_ENV_FILE
+        printf -- "- A new version of the current environment template file '%s' is available and will be " "$1"
+        printf "downloaded now!\n"
+        printf "  Please compare your current '%s' file with the new template file and update it " $CURRENT_ENV_FILE
+        printf "with new environment variables, or delete obsolete variables, if necessary.\n"
       fi
 
       if [ "$3" == "conf-file" ]; then
         mv "$1" "$1".old 2>/dev/null
         cp $CURRENT_CONFIG_FILE ${CURRENT_CONFIG_FILE}.old
-        printf -- "- A new version of the current configuration template file '%s' is available and will be downloaded now!\n" "$1"
-        printf "  Please compare your current '%s' file with the new template file and update it, if necessary!\n" $CURRENT_CONFIG_FILE
+        printf -- "- A new version of the current configuration template file '%s' is available and will be " "$1"
+        printf "downloaded now!\n"
+        printf "  Please compare your current '%s' file with the new template file and update it, " $CURRENT_CONFIG_FILE
+        printf "if necessary!\n"
       fi
 
     fi
@@ -164,7 +177,7 @@ get_modified_file() {
 
     else
       printf "  File '%s' download failed.\n\n" "$1"
-      echo 'Update script finished with error'
+      printf "'%s' update script finished with error.\n" $APP_NAME
       exit 1
 
     fi
@@ -182,7 +195,7 @@ get_modified_file() {
 }
 
 check_template_files_modifications() {
-  echo "Check template files for updates ..."
+  printf "Check template files for updates ...\n"
 
   # check environment file
   get_modified_file .env.traefik.template .env.traefik.template "env-file"
@@ -199,8 +212,13 @@ check_template_files_modifications() {
 }
 
 customize_settings() {
-  # Set application TRAEFIK_BASE_DIR
+  # Setup makefiles
   sed -i "s#TRAEFIK_BASE_DIR :=.*#TRAEFIK_BASE_DIR := \.#" scripts/traefik.mk
+  if [ -f Makefile ]; then
+    printf "include %s/scripts/traefik.mk\n" "$(pwd)" >>Makefile
+  else
+    printf "include %s/scripts/traefik.mk\n" "$(pwd)" >Makefile
+  fi
 
   # write chosen version tag to env file
   sed -i "s#IQB_TRAEFIK_VERSION_TAG.*#IQB_TRAEFIK_VERSION_TAG=$TARGET_TAG#" .env.traefik
@@ -217,28 +235,29 @@ customize_settings() {
 finalize_update() {
   if [ $HAS_ENV_FILE_UPDATE == "true" ] || [ $HAS_CONFIG_FILE_UPDATE == "true" ]; then
     if [ $HAS_ENV_FILE_UPDATE == "true" ] && [ $HAS_CONFIG_FILE_UPDATE == "true" ]; then
-      echo 'Version, environment, and configuration update applied!'
-      printf "\nPlease check your environment and configuration file for modifications!\n"
+      printf 'Version, environment, and configuration update applied!\n\n'
+      printf "Please check your environment and configuration file for modifications!\n\n"
     elif [ $HAS_ENV_FILE_UPDATE == "true" ]; then
-      echo 'Version and environment update applied!'
-      printf "\nPlease check your environment file for modifications!\n"
+      printf 'Version and environment update applied!\n\n'
+      printf "Please check your environment file for modifications!\n\n"
     elif [ $HAS_CONFIG_FILE_UPDATE == "true" ]; then
-      echo 'Version and configuration update applied!'
-      printf "\nPlease check your configuration file for modifications!\n"
+      printf 'Version and configuration update applied!\n\n'
+      printf "Please check your configuration file for modifications!\n\n"
     fi
 
     if command make -v >/dev/null 2>&1; then
-      printf "\nWhen your files are checked, you could restart the application with 'make %s-up' at the " $APP_NAME
+      printf "'%s' will now shut down ...\n" $APP_NAME
+      make traefik-down
+
+      printf "When your files are checked, you could restart the application with 'make %s-up' at the " $APP_NAME
       printf "command line to put the update into effect.\n\n"
 
     else
-      printf '\nWhen your files are checked, you could restart the docker services to put the update into effect.\n\n'
+      printf "Please shut down '%s' now and check the modified files.\n" $APP_NAME
+      printf 'When your files are checked, you could restart the docker services to put the update into effect.\n\n'
     fi
 
-    echo 'The application will now shut down ...'
-    make traefik-down
-
-    echo 'Update script finished.'
+    printf "'%s' update script finished.\n" $APP_NAME
     exit 0
 
   else
@@ -255,13 +274,13 @@ application_reload() {
       make traefik-up
 
     else
-      echo 'Update script finished.'
+      printf "'%s' update script finished.\n" $APP_NAME
       exit 0
     fi
 
   else
     printf 'You could start the updated docker services now.\n\n'
-    echo 'Update script finished.'
+    printf "'%s' update script finished.\n" $APP_NAME
     exit 0
   fi
 }
@@ -275,13 +294,13 @@ application_restart() {
       make traefik-up
 
     else
-      echo 'Update script finished.'
+      printf "'%s' update script finished.\n" $APP_NAME
       exit 0
     fi
 
   else
     printf 'You can restart the docker services now.\n\n'
-    echo 'Update script finished.'
+    printf "'%s' update script finished.\n" $APP_NAME
     exit 0
   fi
 }
@@ -317,12 +336,11 @@ generate_admin_credentials() {
 }
 
 main() {
-  # Load current environment variables in .env.traefik
-  source .env.traefik
-  SOURCE_TAG=$IQB_TRAEFIK_VERSION_TAG
-
   if [ -z "$SELECTED_VERSION" ]; then
-    printf "Update script started ...\n\n"
+    printf "\n==================================================\n"
+    printf '%s update script started ...' $APP_NAME | tr '[:lower:]' '[:upper:]'
+    printf "\n==================================================\n"
+    printf "\n"
     printf "[1] Update %s\n" $APP_NAME
     printf "[2] Update the self-signed TLS certificate valid for 30 days\n"
     printf "[3] Update the %s administrator credentials\n\n" $APP_NAME
@@ -332,6 +350,7 @@ main() {
       if [ "$CHOICE" = 1 ]; then
         printf "\n=== UPDATE %s ===\n\n" $APP_NAME
 
+        load_environment_variables
         get_new_release_version
         create_backup
         run_update_script_in_selected_version
@@ -359,8 +378,7 @@ main() {
         break
 
       elif [ "$CHOICE" = 4 ]; then
-        echo 'Installation script finished.'
-
+        printf "'%s' update script finished.\n" $APP_NAME
         exit 0
 
       fi
@@ -371,6 +389,7 @@ main() {
     TARGET_TAG="$SELECTED_VERSION"
 
     prepare_installation_dir
+    load_environment_variables
     update_files
     check_template_files_modifications
     customize_settings
