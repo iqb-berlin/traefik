@@ -113,8 +113,8 @@ download_file() {
 update_files() {
   printf "Downloading files ...\n"
 
-  download_file docker-compose.traefik.yml docker-compose.yml
-  download_file docker-compose.traefik.prod.yml docker-compose.traefik.prod.yml
+  download_file docker-compose.traefik.yaml docker-compose.yaml
+  download_file docker-compose.traefik.prod.yaml docker-compose.traefik.prod.yaml
   download_file scripts/traefik.mk scripts/make/prod.mk
 
   printf "Downloads done!\n\n"
@@ -201,12 +201,12 @@ check_template_files_modifications() {
   get_modified_file .env.traefik.template .env.traefik.template "env-file"
 
   # check configuration files
-  get_modified_file config/traefik/tls-config.yml config/traefik/tls-config.yml "conf-file"
-  get_modified_file config/prometheus/prometheus.yml config/prometheus/prometheus.yml "conf-file"
+  get_modified_file config/traefik/tls-config.yaml config/traefik/tls-config.yaml "conf-file"
+  get_modified_file config/prometheus/prometheus.yaml config/prometheus/prometheus.yaml "conf-file"
   get_modified_file config/grafana/config.monitoring config/grafana/config.monitoring "conf-file"
-  get_modified_file config/grafana/provisioning/dashboards/dashboard.yml config/grafana/provisioning/dashboards/dashboard.yml "conf-file"
+  get_modified_file config/grafana/provisioning/dashboards/dashboard.yaml config/grafana/provisioning/dashboards/dashboard.yaml "conf-file"
   get_modified_file config/grafana/provisioning/dashboards/traefik_rev4.json config/grafana/provisioning/dashboards/traefik_rev4.json "conf-file"
-  get_modified_file config/grafana/provisioning/datasources/datasource.yml config/grafana/provisioning/datasources/datasource.yml "conf-file"
+  get_modified_file config/grafana/provisioning/datasources/datasource.yaml config/grafana/provisioning/datasources/datasource.yaml "conf-file"
 
   printf "Template files update check done.\n\n"
 }

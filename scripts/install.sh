@@ -102,15 +102,15 @@ download_file() {
 download_files() {
   printf "4. Downloading files:\n"
 
-  download_file docker-compose.traefik.yml docker-compose.yml
-  download_file docker-compose.traefik.prod.yml docker-compose.traefik.prod.yml
+  download_file docker-compose.traefik.yaml docker-compose.yaml
+  download_file docker-compose.traefik.prod.yaml docker-compose.traefik.prod.yaml
   download_file .env.traefik.template .env.traefik.template
-  download_file config/traefik/tls-config.yml config/traefik/tls-config.yml
-  download_file config/prometheus/prometheus.yml config/prometheus/prometheus.yml
+  download_file config/traefik/tls-config.yaml config/traefik/tls-config.yaml
+  download_file config/prometheus/prometheus.yaml config/prometheus/prometheus.yaml
   download_file config/grafana/config.monitoring config/grafana/config.monitoring
-  download_file config/grafana/provisioning/dashboards/dashboard.yml config/grafana/provisioning/dashboards/dashboard.yml
+  download_file config/grafana/provisioning/dashboards/dashboard.yaml config/grafana/provisioning/dashboards/dashboard.yaml
   download_file config/grafana/provisioning/dashboards/traefik_rev4.json config/grafana/provisioning/dashboards/traefik_rev4.json
-  download_file config/grafana/provisioning/datasources/datasource.yml config/grafana/provisioning/datasources/datasource.yml
+  download_file config/grafana/provisioning/datasources/datasource.yaml config/grafana/provisioning/datasources/datasource.yaml
   download_file scripts/traefik.mk scripts/make/prod.mk
   download_file update_$APP_NAME.sh scripts/update.sh
   chmod +x update_$APP_NAME.sh

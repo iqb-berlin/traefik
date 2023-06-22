@@ -26,21 +26,21 @@ traefik-up:
 					echo "===============================================";\
 	fi
 	docker compose\
-			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yml\
-			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yml\
+			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 		pull
 	docker compose\
-			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yml\
-			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yml\
+			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 		up -d
 
 ## Stop and remove docker containers
 traefik-down:
 	docker compose\
-			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yml\
-			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yml\
+			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 		down
 
@@ -48,16 +48,16 @@ traefik-down:
 # Param (optional): SERVICE - Start the specified service only, e.g. `make traefik-start SERVICE=grafana`
 traefik-start:
 	docker compose\
-			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yml\
-			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yml\
+			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 		start $(SERVICE)
 
 ## Stop docker containers
 traefik-stop:
 	docker compose\
-			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yml\
-			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yml\
+			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 		stop $(SERVICE)
 
@@ -65,8 +65,8 @@ traefik-stop:
 # Param (optional): SERVICE - Show status of the specified service only, e.g. `make traefik-status SERVICE=grafana`
 traefik-status:
 	docker compose\
-			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yml\
-			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yml\
+			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 		ps -a $(SERVICE)
 
@@ -74,8 +74,8 @@ traefik-status:
 # Param (optional): SERVICE - Show log of the specified service only, e.g. `make traefik-logs SERVICE=grafana`
 traefik-logs:
 	docker compose\
-			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yml\
-			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yml\
+			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 		logs -f $(SERVICE)
 
@@ -83,8 +83,8 @@ traefik-logs:
 # Param (optional): SERVICE - Show config of the specified service only, e.g. `make traefik-config SERVICE=grafana`
 traefik-config:
 	docker compose\
-			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yml\
-			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yml\
+			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 		config $(SERVICE)
 

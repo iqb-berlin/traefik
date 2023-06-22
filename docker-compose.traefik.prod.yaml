@@ -11,7 +11,7 @@ services:
       - "--entryPoints.websecure.http.tls.options=default@file"
       - "--metrics.prometheus=true"
       - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
-      - "--providers.file.filename=/config/tls-config.yml"
+      - "--providers.file.filename=/config/tls-config.yaml"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
     labels:
@@ -30,7 +30,7 @@ services:
     ports:
       - "${HTTPS_PORT}:443"
     volumes:
-      - ./config/traefik/tls-config.yml:/config/tls-config.yml
+      - ./config/traefik/tls-config.yaml:/config/tls-config.yaml
       - ./secrets/traefik/certificate.pem:/secrets/certificate.pem:ro
       - ./secrets/traefik/privkey.pem:/secrets/privkey.pem:ro
 
@@ -45,7 +45,7 @@ services:
       - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
       - "traefik.docker.network=app-net"
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--config.file=/etc/prometheus/prometheus.yaml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.size=256MB'
 
