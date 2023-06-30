@@ -12,7 +12,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik-ui.entrypoints=web, traefik"
-      - "traefik.http.routers.traefik-ui.rule=Host(`traefik.monitoring.${SERVER_NAME}`)"
+      - "traefik.http.routers.traefik-ui.rule=Host(`traefik.${SERVER_NAME}`)"
       - "traefik.http.routers.traefik-ui.service=api@internal"
     ports:
       - "${TRAEFIK_PORT}:8080"  # dashboard
@@ -21,7 +21,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.prometheus.entrypoints=web, traefik"
-      - "traefik.http.routers.prometheus.rule=Host(`prometheus.monitoring.${SERVER_NAME}`)"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.${SERVER_NAME}`)"
       - "traefik.http.routers.prometheus.service=prometheus"
       - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
       - "traefik.docker.network=app-net"
@@ -34,7 +34,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.grafana.entrypoints=web, traefik"
-      - "traefik.http.routers.grafana.rule=Host(`grafana.monitoring.${SERVER_NAME}`)"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.${SERVER_NAME}`)"
       - "traefik.http.routers.grafana.service=grafana"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
       - "traefik.docker.network=app-net"
