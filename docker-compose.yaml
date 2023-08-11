@@ -6,6 +6,7 @@ x-env-logging: &env-logging
 services:
   traefik:
     image: traefik:2.10
+    restart: always
     ports:
       - "${HTTP_PORT}:80"
     volumes:
@@ -16,7 +17,7 @@ services:
 
   prometheus:
     image: prom/prometheus:v2.43.0
-    restart: on-failure
+    restart: always
     volumes:
       - ./config/prometheus/:/etc/prometheus/
       - prometheus_vol:/prometheus
@@ -29,7 +30,7 @@ services:
     image: grafana/grafana:9.5.1
     depends_on:
       - prometheus
-    restart: on-failure
+    restart: always
     env_file:
       - ./config/grafana/config.monitoring
     volumes:
@@ -47,5 +48,11 @@ volumes:
 networks:
   application-network:
     name: app-net
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: $DOCKER_DAEMON_MTU
   traefik-network:
     name: traefik-net
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: $DOCKER_DAEMON_MTU
