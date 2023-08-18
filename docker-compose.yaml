@@ -24,11 +24,24 @@ services:
     networks:
       - application-network
 
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    restart: always
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - application-network
+
   prometheus:
     image: prom/prometheus:v2.43.0
     restart: always
+    depends_on:
+      - cadvisor
     volumes:
-      - ./config/prometheus/:/etc/prometheus/
+      - ./config/prometheus/:/etc/prometheus:ro
       - prometheus_vol:/prometheus
     networks:
       - application-network
@@ -37,9 +50,9 @@ services:
 
   grafana:
     image: grafana/grafana:9.5.1
+    restart: always
     depends_on:
       - prometheus
-    restart: always
     env_file:
       - ./config/grafana/config.monitoring
     volumes:
