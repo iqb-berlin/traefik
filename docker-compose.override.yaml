@@ -14,8 +14,20 @@ services:
       - "traefik.http.routers.traefik-ui.entrypoints=web, traefik"
       - "traefik.http.routers.traefik-ui.rule=Host(`traefik.${SERVER_NAME}`)"
       - "traefik.http.routers.traefik-ui.service=api@internal"
+      - "traefik.http.middlewares.maintenance-page.errors.status=501,502"
+      - "traefik.http.middlewares.maintenance-page.errors.service=maintenance-page@docker"
+      - "traefik.http.middlewares.maintenance-page.errors.query=/"
     ports:
       - "${TRAEFIK_PORT}:8080"  # dashboard
+
+  maintenance-page:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.maintenance-page.entrypoints=web, traefik"
+      - "traefik.http.routers.maintenance-page.priority=1"
+      - "traefik.http.routers.maintenance-page.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.maintenance-page.middlewares=maintenance-page@docker"
+      - "traefik.http.services.maintenance-page.loadbalancer.server.port=80"
 
   prometheus:
     labels:

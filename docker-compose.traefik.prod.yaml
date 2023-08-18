@@ -27,12 +27,25 @@ services:
       - "traefik.http.middlewares.security-headers.headers.customFrameOptionsValue=SAMEORIGIN"
       - "traefik.http.middlewares.security-headers.headers.stsSeconds=31536000"
       - "traefik.http.middlewares.security-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.maintenance-page.errors.status=501,502"
+      - "traefik.http.middlewares.maintenance-page.errors.service=maintenance-page@docker"
+      - "traefik.http.middlewares.maintenance-page.errors.query=/"
     ports:
       - "${HTTPS_PORT}:443"
     volumes:
       - ./config/traefik/tls-config.yaml:/config/tls-config.yaml
       - ./secrets/traefik/certificate.pem:/secrets/certificate.pem:ro
       - ./secrets/traefik/privkey.pem:/secrets/privkey.pem:ro
+
+  maintenance-page:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.maintenance-page.entrypoints=websecure"
+      - "traefik.http.routers.maintenance-page.tls=true"
+      - "traefik.http.routers.maintenance-page.priority=1"
+      - "traefik.http.routers.maintenance-page.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.maintenance-page.middlewares=maintenance-page@docker"
+      - "traefik.http.services.maintenance-page.loadbalancer.server.port=80"
 
   prometheus:
     labels:
