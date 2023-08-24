@@ -15,6 +15,15 @@ services:
       - traefik-network
       - application-network
 
+  maintenance-page:
+    image: nginx:stable
+    restart: always
+    volumes:
+      - ./config/maintenance-page/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./config/maintenance-page/maintenance.html:/usr/share/nginx/html/maintenance.html:ro
+    networks:
+      - application-network
+
   prometheus:
     image: prom/prometheus:v2.43.0
     restart: always

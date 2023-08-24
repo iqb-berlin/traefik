@@ -80,6 +80,7 @@ prepare_installation_dir() {
 
   mkdir -p "$TARGET_DIR"/config/grafana/provisioning/dashboards
   mkdir -p "$TARGET_DIR"/config/grafana/provisioning/datasources
+  mkdir -p "$TARGET_DIR"/config/maintenance-page
   mkdir -p "$TARGET_DIR"/config/prometheus
   mkdir -p "$TARGET_DIR"/config/traefik
   mkdir -p "$TARGET_DIR"/scripts
@@ -106,6 +107,8 @@ download_files() {
   download_file docker-compose.traefik.prod.yaml docker-compose.traefik.prod.yaml
   download_file .env.traefik.template .env.traefik.template
   download_file config/traefik/tls-config.yaml config/traefik/tls-config.yaml
+  download_file config/maintenance-page/default.conf.template config/maintenance-page/default.conf.template
+  download_file config/maintenance-page/maintenance.html config/maintenance-page/maintenance.html
   download_file config/prometheus/prometheus.yaml config/prometheus/prometheus.yaml
   download_file config/grafana/config.monitoring config/grafana/config.monitoring
   download_file config/grafana/provisioning/dashboards/dashboard.yaml config/grafana/provisioning/dashboards/dashboard.yaml

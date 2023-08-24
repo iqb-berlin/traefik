@@ -98,6 +98,7 @@ prepare_installation_dir() {
     mkdir -p ./config/grafana/provisioning/dashboards
     mkdir -p ./config/grafana/provisioning/datasources
   fi
+  mkdir -p ./config/maintenance-page
   if [ -d ./prometheus/ ]; then
     mv ./prometheus/ ./config/prometheus/
   else
@@ -211,6 +212,8 @@ check_template_files_modifications() {
   # check configuration files
   printf "6. Configuration files modification check\n"
   get_modified_file config/traefik/tls-config.yaml config/traefik/tls-config.yaml "conf-file"
+  get_modified_file config/maintenance-page/default.conf.template config/maintenance-page/default.conf.template "conf-file"
+  get_modified_file config/maintenance-page/maintenance.html config/maintenance-page/maintenance.html "conf-file"
   get_modified_file config/prometheus/prometheus.yaml config/prometheus/prometheus.yaml "conf-file"
   get_modified_file config/grafana/config.monitoring config/grafana/config.monitoring "conf-file"
   get_modified_file config/grafana/provisioning/dashboards/dashboard.yaml config/grafana/provisioning/dashboards/dashboard.yaml "conf-file"
