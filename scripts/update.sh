@@ -224,7 +224,7 @@ check_template_files_modifications() {
 
 customize_settings() {
   # Setup makefiles
-  sed -i "s#TRAEFIK_BASE_DIR :=.*#TRAEFIK_BASE_DIR := \.#" scripts/traefik.mk
+  sed -i "s#TRAEFIK_BASE_DIR :=.*#TRAEFIK_BASE_DIR := \\$(pwd)#" scripts/traefik.mk
   if [ -f Makefile ]; then
     printf "include %s/scripts/traefik.mk\n" "$(pwd)" >>Makefile
   else
