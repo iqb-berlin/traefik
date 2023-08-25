@@ -50,3 +50,12 @@ services:
       - "traefik.http.routers.grafana.service=grafana"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
       - "traefik.docker.network=app-net"
+
+  dozzle:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dozzle.entrypoints=web, traefik"
+      - "traefik.http.routers.dozzle.rule=Host(`dozzle.${SERVER_NAME}`)"
+      - "traefik.http.routers.dozzle.service=dozzle"
+      - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
+      - "traefik.docker.network=app-net"
