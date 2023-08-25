@@ -47,6 +47,17 @@ services:
       - "traefik.http.routers.maintenance-page.middlewares=maintenance-page@docker"
       - "traefik.http.services.maintenance-page.loadbalancer.server.port=80"
 
+  cadvisor:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cadvisor.entrypoints=websecure"
+      - "traefik.http.routers.cadvisor.tls=true"
+      - "traefik.http.routers.cadvisor.rule=Host(`cadvisor.${SERVER_NAME}`)"
+      - "traefik.http.routers.cadvisor.middlewares=traefik-auth, security-headers"
+      - "traefik.http.routers.cadvisor.service=cadvisor"
+      - "traefik.http.services.cadvisor.loadbalancer.server.port=8080"
+      - "traefik.docker.network=app-net"
+
   prometheus:
     labels:
       - "traefik.enable=true"
