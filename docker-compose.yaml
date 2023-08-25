@@ -50,6 +50,18 @@ services:
     logging:
       <<: *env-logging
 
+  dozzle:
+    container_name: dozzle
+    image: amir20/dozzle:v4.11.2
+    environment:
+      DOZZLE_LEVEL: info
+      DOZZLE_NO_ANALYTICS: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - application-network
+
+
 volumes:
   prometheus_vol:
   grafana_vol:
