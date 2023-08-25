@@ -53,6 +53,7 @@ services:
   dozzle:
     container_name: dozzle
     image: amir20/dozzle:v4.11.2
+    restart: always
     environment:
       DOZZLE_LEVEL: info
       DOZZLE_NO_ANALYTICS: true
