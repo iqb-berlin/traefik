@@ -38,6 +38,15 @@ services:
       - "traefik.http.services.cadvisor.loadbalancer.server.port=8080"
       - "traefik.docker.network=app-net"
 
+  node-exporter:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cadvisor.entrypoints=web, traefik"
+      - "traefik.http.routers.node-exporter.rule=Host(`node-exporter.${SERVER_NAME}`)"
+      - "traefik.http.routers.node-exporter.service=node-exporter"
+      - "traefik.http.services.node-exporter.loadbalancer.server.port=9100"
+      - "traefik.docker.network=app-net"
+
   prometheus:
     labels:
       - "traefik.enable=true"
