@@ -27,13 +27,25 @@ services:
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.47.2
     restart: always
+    privileged: true
+    command:
+      - "--enable_metrics=cpu,memory,network"
+      - "--store_container_labels=false"
+      - "--docker_only=true"
     volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:rw
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
+      - "/:/rootfs:ro"
+      - "/var/run:/var/run:ro"
+      - "/sys:/sys:ro"
+      - "/var/lib/docker/:/var/lib/docker:ro"
+      - "/dev/disk/:/dev/disk:ro"
     networks:
       - application-network
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
 
   prometheus:
     image: prom/prometheus:v2.43.0
@@ -64,7 +76,6 @@ services:
       <<: *env-logging
 
   dozzle:
-    container_name: dozzle
     image: amir20/dozzle:v4.11.2
     restart: always
     environment:
@@ -74,6 +85,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - application-network
+    deploy:
+      mode: global
 
 
 volumes:
