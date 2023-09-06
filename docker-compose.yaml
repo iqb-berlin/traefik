@@ -40,6 +40,8 @@ services:
       - "/dev/disk/:/dev/disk:ro"
     networks:
       - application-network
+    logging:
+      <<: *env-logging
     deploy:
       mode: global
       resources:
@@ -85,6 +87,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - application-network
+    logging:
+      <<: *env-logging
     deploy:
       mode: global
 
