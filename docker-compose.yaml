@@ -29,8 +29,8 @@ services:
     restart: always
     depends_on:
       - prometheus
-    env_file:
-      - ./config/grafana/config.monitoring
+    environment:
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
     volumes:
       - grafana_vol:/var/lib/grafana
       - ./config/grafana/provisioning/:/etc/grafana/provisioning/
