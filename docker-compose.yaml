@@ -4,7 +4,7 @@ x-env-logging: &env-logging
     max-file: "3"
 
 services:
-  traefik:
+  ingress-controller:
     image: traefik:2.10
     restart: always
     ports:
@@ -12,7 +12,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
-      - traefik-network
+      - ingress-network
       - application-network
 
   maintenance-page:
@@ -24,30 +24,33 @@ services:
     networks:
       - application-network
 
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.47.2
+  grafana:
+    image: grafana/grafana:9.5.1
     restart: always
-    privileged: true
-    command:
-      - "--enable_metrics=cpu,memory,network"
-      - "--store_container_labels=false"
-      - "--docker_only=true"
+    depends_on:
+      - prometheus
+    env_file:
+      - ./config/grafana/config.monitoring
     volumes:
-      - "/:/rootfs:ro"
-      - "/var/run:/var/run:ro"
-      - "/sys:/sys:ro"
-      - "/var/lib/docker/:/var/lib/docker:ro"
-      - "/dev/disk/:/dev/disk:ro"
+      - grafana_vol:/var/lib/grafana
+      - ./config/grafana/provisioning/:/etc/grafana/provisioning/
     networks:
       - application-network
     logging:
       <<: *env-logging
-    deploy:
-      mode: global
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: "256M"
+
+  prometheus:
+    image: prom/prometheus:v2.43.0
+    restart: always
+    depends_on:
+      - cadvisor
+    volumes:
+      - ./config/prometheus/:/etc/prometheus:ro
+      - prometheus_vol:/prometheus
+    networks:
+      - application-network
+    logging:
+      <<: *env-logging
 
   node-exporter:
     image: prom/node-exporter:v1.6.1
@@ -74,33 +77,30 @@ services:
           cpus: "0.5"
           memory: "256M"
 
-  prometheus:
-    image: prom/prometheus:v2.43.0
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
     restart: always
-    depends_on:
-      - cadvisor
+    privileged: true
+    command:
+      - "--enable_metrics=cpu,memory,network"
+      - "--store_container_labels=false"
+      - "--docker_only=true"
     volumes:
-      - ./config/prometheus/:/etc/prometheus:ro
-      - prometheus_vol:/prometheus
+      - "/:/rootfs:ro"
+      - "/var/run:/var/run:ro"
+      - "/sys:/sys:ro"
+      - "/var/lib/docker/:/var/lib/docker:ro"
+      - "/dev/disk/:/dev/disk:ro"
     networks:
       - application-network
     logging:
       <<: *env-logging
-
-  grafana:
-    image: grafana/grafana:9.5.1
-    restart: always
-    depends_on:
-      - prometheus
-    env_file:
-      - ./config/grafana/config.monitoring
-    volumes:
-      - grafana_vol:/var/lib/grafana
-      - ./config/grafana/provisioning/:/etc/grafana/provisioning/
-    networks:
-      - application-network
-    logging:
-      <<: *env-logging
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
 
   dozzle:
     image: amir20/dozzle:v4.11.2
@@ -117,19 +117,58 @@ services:
     deploy:
       mode: global
 
+  identity-provider:
+    image: quay.io/keycloak/keycloak:22.0
+    restart: always
+    depends_on:
+      identity-provider-db:
+        condition: service_healthy
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://identity-provider-db/${POSTGRES_DB}
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_HOSTNAME: keycloak.${SERVER_NAME}
+      KC_HEALTH_ENABLED: 'true'
+      KC_METRICS_ENABLED: 'true'
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KEYCLOAK_EXTRA_ARGS_PREPENDED: "--spi-login-protocol-openid-connect-legacy-logout-redirect-uri=true"
+    networks:
+      - application-network
+
+  identity-provider-db:
+    image: postgres:14.8-bookworm
+    restart: always
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-q", "-d", "${POSTGRES_DB}", "-U", "${POSTGRES_USER}" ]
+      interval: 1s
+      retries: 120
+    volumes:
+      - keycloak_vol:/var/lib/postgresql/data
+    environment:
+      POSTGRES_HOST: identity-provider-db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    networks:
+      - application-network
+
 
 volumes:
-  prometheus_vol:
   grafana_vol:
+  prometheus_vol:
+  keycloak_vol:
 
 networks:
-  application-network:
-    name: app-net
+  ingress-network:
+    name: ingress-net
     driver: bridge
     driver_opts:
       com.docker.network.driver.mtu: $DOCKER_DAEMON_MTU
-  traefik-network:
-    name: traefik-net
+  application-network:
+    name: app-net
     driver: bridge
     driver_opts:
       com.docker.network.driver.mtu: $DOCKER_DAEMON_MTU

@@ -8,6 +8,27 @@ REPO_API="https://api.github.com/repos/iqb-berlin/$APP_NAME"
 REQUIRED_PACKAGES=("docker -v" "docker compose version")
 OPTIONAL_PACKAGES=("make -v")
 
+declare -A ENV_VARS
+# Server
+ENV_VARS[SERVER_NAME]=base_domain.org
+
+# Ports
+ENV_VARS[HTTP_PORT]=80
+ENV_VARS[HTTPS_PORT]=443
+
+# Network
+ENV_VARS[DOCKER_DAEMON_MTU]=1500
+
+# Identity Provider
+ENV_VARS[KEYCLOAK_ADMIN]=admin
+ENV_VARS[KEYCLOAK_ADMIN_PASSWORD]=$(tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 16 | head -n 1)
+ENV_VARS[POSTGRES_USER]=keycloak
+ENV_VARS[POSTGRES_PASSWORD]=$(tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 16 | head -n 1)
+ENV_VARS[POSTGRES_DB]=keycloak
+
+ENV_VAR_ORDER=(SERVER_NAME HTTP_PORT HTTPS_PORT DOCKER_DAEMON_MTU KEYCLOAK_ADMIN KEYCLOAK_ADMIN_PASSWORD POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB)
+
+
 check_prerequisites() {
   printf "1. Checking prerequisites:\n\n"
 
@@ -124,27 +145,21 @@ download_files() {
 customize_settings() {
   # Activate environment file
   cp .env.traefik.template .env.traefik
-  source .env.traefik
 
   # Setup environment variables
-  printf "5. Set Environment variables (default postgres password is generated randomly):\n\n"
-
-  read -p "SERVER_NAME: " -er -i "$SERVER_NAME" SERVER_NAME
-  sed -i "s#SERVER_NAME.*#SERVER_NAME=$SERVER_NAME#" .env.traefik
-
-  read -p "HTTP_PORT: " -er -i "$HTTP_PORT" HTTP_PORT
-  sed -i "s#HTTP_PORT.*#HTTP_PORT=$HTTP_PORT#" .env.traefik
-
-  read -p "HTTPS_PORT: " -er -i "$HTTPS_PORT" HTTPS_PORT
-  sed -i "s#HTTPS_PORT.*#HTTPS_PORT=$HTTPS_PORT#" .env.traefik
-
-  read -p "Traefik administrator name: " -er TRAEFIK_ADMIN_NAME
-  read -p "Traefik administrator password: " -er TRAEFIK_ADMIN_PASSWORD
-  BASIC_AUTH_CRED=$TRAEFIK_ADMIN_NAME:$(openssl passwd -apr1 "$TRAEFIK_ADMIN_PASSWORD" | sed -e s/\\$/\\$\\$/g)
-  printf "TRAEFIK_AUTH: %s\n" "$BASIC_AUTH_CRED"
-  sed -i "s#TRAEFIK_AUTH.*#TRAEFIK_AUTH=$BASIC_AUTH_CRED#" .env.traefik
+  printf "5. Set Environment variables (default passwords are generated randomly):\n"
 
   sed -i "s#IQB_TRAEFIK_VERSION_TAG.*#IQB_TRAEFIK_VERSION_TAG=$TARGET_TAG#" .env.traefik
+
+  for VAR in "${ENV_VAR_ORDER[@]}"; do
+    read -p "$VAR: " -er -i ${ENV_VARS[$VAR]} NEW_ENV_VAR_VALUE
+    sed -i "s#$VAR.*#$VAR=$NEW_ENV_VAR_VALUE#" .env.traefik
+  done
+
+  source .env.traefik
+  BASIC_AUTH_CRED=$KEYCLOAK_ADMIN:$(openssl passwd -apr1 "$KEYCLOAK_ADMIN_PASSWORD" | sed -e s/\\$/\\$\\$/g)
+  printf "TRAEFIK_AUTH: %s\n" "$BASIC_AUTH_CRED"
+  sed -i "s#TRAEFIK_AUTH.*#TRAEFIK_AUTH=$BASIC_AUTH_CRED#" .env.traefik
 
   # Setup makefiles
   sed -i "s#TRAEFIK_BASE_DIR :=.*#TRAEFIK_BASE_DIR := \\$TARGET_DIR#" scripts/traefik.mk
