@@ -1,7 +1,7 @@
 services:
   ingress-controller:
     command:
-      # - "--log.level=DEBUG"
+      - "--log.level=DEBUG"
       # - "--accesslog=true"
       - "--api.dashboard=true"
       - "--entryPoints.web.address=:80"
@@ -9,6 +9,10 @@ services:
       - "--entryPoints.web.http.redirections.entryPoint.scheme=https"
       - "--entryPoints.websecure.address=:443"
       - "--entryPoints.websecure.http.tls.options=default@file"
+      - "--certificatesresolvers.iqbresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.iqbresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      - "--certificatesresolvers.iqbresolver.acme.email=sven.wolter@iqb.hu-berlin.de"
+      - "--certificatesresolvers.iqbresolver.acme.storage=/letsencrypt/acme.json"
       - "--metrics.prometheus=true"
       - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
       - "--providers.file.filename=/config/tls-config.yaml"
@@ -17,6 +21,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik-ui.entrypoints=websecure"
+      - "traefik.http.routers.traefik-ui.tls.certresolver=iqbresolver"
       - "traefik.http.routers.traefik-ui.tls=true"
       - "traefik.http.routers.traefik-ui.rule=Host(`traefik.${SERVER_NAME}`)"
       - "traefik.http.routers.traefik-ui.service=api@internal"
@@ -33,14 +38,16 @@ services:
     ports:
       - "${HTTPS_PORT}:443"
     volumes:
-      - ./config/traefik/tls-config.yaml:/config/tls-config.yaml
-      - ./secrets/traefik/certificate.pem:/secrets/certificate.pem:ro
-      - ./secrets/traefik/privkey.pem:/secrets/privkey.pem:ro
+      - "./secrets/letsencrypt:/letsencrypt"
+      #- ./config/traefik/tls-config.yaml:/config/tls-config.yaml
+      #- ./secrets/traefik/certificate.pem:/secrets/certificate.pem:ro
+      #- ./secrets/traefik/privkey.pem:/secrets/privkey.pem:ro
 
   maintenance-page:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.maintenance-page.entrypoints=websecure"
+      #- "traefik.http.routers.maintenance-page.tls.certresolver=iqbresolver"
       - "traefik.http.routers.maintenance-page.tls=true"
       - "traefik.http.routers.maintenance-page.priority=1"
       - "traefik.http.routers.maintenance-page.rule=HostRegexp(`{host:.+}`)"
@@ -51,6 +58,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.grafana.entrypoints=websecure"
+      #- "traefik.http.routers.grafana.tls.certresolver=iqbresolver"
       - "traefik.http.routers.grafana.tls=true"
       - "traefik.http.routers.grafana.rule=Host(`grafana.${SERVER_NAME}`)"
       - "traefik.http.routers.grafana.middlewares=security-headers"
@@ -72,6 +80,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.prometheus.entrypoints=websecure"
+      #- "traefik.http.routers.prometheus.tls.certresolver=iqbresolver"
       - "traefik.http.routers.prometheus.tls=true"
       - "traefik.http.routers.prometheus.rule=Host(`prometheus.${SERVER_NAME}`)"
       - "traefik.http.routers.prometheus.middlewares=traefik-auth, security-headers"
@@ -87,6 +96,7 @@ services:
     labels:
       - "traefik.enable=false"
       - "traefik.http.routers.node-exporter.entrypoints=websecure"
+      #- "traefik.http.routers.node-exporter.tls.certresolver=iqbresolver"
       - "traefik.http.routers.node-exporter.tls=true"
       - "traefik.http.routers.node-exporter.rule=Host(`node-exporter.${SERVER_NAME}`)"
       - "traefik.http.routers.node-exporter.middlewares=traefik-auth, security-headers"
@@ -98,6 +108,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.cadvisor.entrypoints=websecure"
+      #- "traefik.http.routers.cadvisor.tls.certresolver=iqbresolver"
       - "traefik.http.routers.cadvisor.tls=true"
       - "traefik.http.routers.cadvisor.rule=Host(`cadvisor.${SERVER_NAME}`)"
       - "traefik.http.routers.cadvisor.middlewares=traefik-auth, security-headers"
@@ -109,6 +120,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.dozzle.entrypoints=websecure"
+      #- "traefik.http.routers.dozzle.tls.certresolver=iqbresolver"
       - "traefik.http.routers.dozzle.tls=true"
       - "traefik.http.routers.dozzle.rule=Host(`dozzle.${SERVER_NAME}`)"
       - "traefik.http.routers.dozzle.middlewares=traefik-auth, security-headers"
@@ -120,6 +132,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.keycloak.entrypoints=websecure"
+      #- "traefik.http.routers.keycloak.tls.certresolver=iqbresolver"
       - "traefik.http.routers.keycloak.tls=true"
       - "traefik.http.routers.keycloak.rule=Host(`keycloak.${SERVER_NAME}`)"
       - "traefik.http.routers.keycloak.middlewares=security-headers"
