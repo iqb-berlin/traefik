@@ -1,5 +1,5 @@
 services:
-  traefik:
+  ingress-controller:
     command:
       # - "--log.level=DEBUG"
       # - "--accesslog=true"
@@ -47,26 +47,15 @@ services:
       - "traefik.http.routers.maintenance-page.middlewares=maintenance-page@docker"
       - "traefik.http.services.maintenance-page.loadbalancer.server.port=80"
 
-  cadvisor:
+  grafana:
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.cadvisor.entrypoints=websecure"
-      - "traefik.http.routers.cadvisor.tls=true"
-      - "traefik.http.routers.cadvisor.rule=Host(`cadvisor.${SERVER_NAME}`)"
-      - "traefik.http.routers.cadvisor.middlewares=traefik-auth, security-headers"
-      - "traefik.http.routers.cadvisor.service=cadvisor"
-      - "traefik.http.services.cadvisor.loadbalancer.server.port=8080"
-      - "traefik.docker.network=app-net"
-
-  node-exporter:
-    labels:
-      - "traefik.enable=false"
-      - "traefik.http.routers.node-exporter.entrypoints=websecure"
-      - "traefik.http.routers.node-exporter.tls=true"
-      - "traefik.http.routers.node-exporter.rule=Host(`node-exporter.${SERVER_NAME}`)"
-      - "traefik.http.routers.node-exporter.middlewares=traefik-auth, security-headers"
-      - "traefik.http.routers.node-exporter.service=node-exporter"
-      - "traefik.http.services.node-exporter.loadbalancer.server.port=9100"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.${SERVER_NAME}`)"
+      - "traefik.http.routers.grafana.middlewares=traefik-auth, security-headers"
+      - "traefik.http.routers.grafana.service=grafana"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
       - "traefik.docker.network=app-net"
 
   prometheus:
@@ -84,15 +73,26 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.size=256MB'
 
-  grafana:
+  node-exporter:
+    labels:
+      - "traefik.enable=false"
+      - "traefik.http.routers.node-exporter.entrypoints=websecure"
+      - "traefik.http.routers.node-exporter.tls=true"
+      - "traefik.http.routers.node-exporter.rule=Host(`node-exporter.${SERVER_NAME}`)"
+      - "traefik.http.routers.node-exporter.middlewares=traefik-auth, security-headers"
+      - "traefik.http.routers.node-exporter.service=node-exporter"
+      - "traefik.http.services.node-exporter.loadbalancer.server.port=9100"
+      - "traefik.docker.network=app-net"
+
+  cadvisor:
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.grafana.entrypoints=websecure"
-      - "traefik.http.routers.grafana.tls=true"
-      - "traefik.http.routers.grafana.rule=Host(`grafana.${SERVER_NAME}`)"
-      - "traefik.http.routers.grafana.middlewares=traefik-auth, security-headers"
-      - "traefik.http.routers.grafana.service=grafana"
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      - "traefik.http.routers.cadvisor.entrypoints=websecure"
+      - "traefik.http.routers.cadvisor.tls=true"
+      - "traefik.http.routers.cadvisor.rule=Host(`cadvisor.${SERVER_NAME}`)"
+      - "traefik.http.routers.cadvisor.middlewares=traefik-auth, security-headers"
+      - "traefik.http.routers.cadvisor.service=cadvisor"
+      - "traefik.http.services.cadvisor.loadbalancer.server.port=8080"
       - "traefik.docker.network=app-net"
 
   dozzle:
@@ -105,3 +105,16 @@ services:
       - "traefik.http.routers.dozzle.service=dozzle"
       - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
       - "traefik.docker.network=app-net"
+
+  identity-provider:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.keycloak.entrypoints=websecure"
+      - "traefik.http.routers.keycloak.tls=true"
+      - "traefik.http.routers.keycloak.rule=Host(`keycloak.${SERVER_NAME}`)"
+      - "traefik.http.routers.keycloak.middlewares=security-headers"
+      - "traefik.http.routers.keycloak.service=identity-provider-traefik@docker"
+      - "traefik.docker.network=app-net"
+    command: [ 'start', '--proxy=edge' ]
+    environment:
+      KEYCLOAK_LOGLEVEL: INFO
