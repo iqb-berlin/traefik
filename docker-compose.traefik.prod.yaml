@@ -1,3 +1,19 @@
+x-env-oauth2-proxy: &env-oauth2-proxy
+  OAUTH2_PROXY_PROVIDER: keycloak-oidc
+  OAUTH2_PROXY_OIDC_ISSUER_URL: https://keycloak.${SERVER_NAME}/realms/iqb
+  OAUTH2_PROXY_SKIP_OIDC_DISCOVERY: true
+  OAUTH2_PROXY_LOGIN_URL: https://keycloak.${SERVER_NAME}/realms/iqb/protocol/openid-connect/auth
+  OAUTH2_PROXY_REDEEM_URL: http://identity-provider:8080/realms/iqb/protocol/openid-connect/token
+  OAUTH2_PROXY_OIDC_JWKS_URL: http://identity-provider:8080/realms/iqb/protocol/openid-connect/certs
+  OAUTH2_PROXY_COOKIE_SECURE: true
+  OAUTH2_PROXY_SCOPE: openid
+  OAUTH2_PROXY_CODE_CHALLENGE_METHOD: S256
+  OAUTH2_PROXY_REVERSE_PROXY: true
+  OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: true
+  OAUTH2_PROXY_ERRORS_TO_INFO_LOG: true
+  OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
+
+
 services:
   ingress-controller:
     command:
@@ -75,7 +91,7 @@ services:
 
   prometheus:
     labels:
-      - "traefik.enable=true"
+      - "traefik.enable=false"
       - "traefik.http.routers.prometheus.entrypoints=websecure"
       - "traefik.http.routers.prometheus.tls=true"
       - "traefik.http.routers.prometheus.rule=Host(`prometheus.${SERVER_NAME}`)"
@@ -87,6 +103,25 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yaml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.size=256MB'
+
+  prometheus-oauth2-proxy:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus-oauth.entrypoints=websecure"
+      - "traefik.http.routers.prometheus-oauth.tls=true"
+      - "traefik.http.routers.prometheus-oauth.rule=Host(`prometheus.${SERVER_NAME}`)"
+      - "traefik.http.routers.prometheus-oauth.middlewares=security-headers"
+      - "traefik.docker.network=app-net"
+    environment:
+      <<: *env-oauth2-proxy
+      OAUTH2_PROXY_CLIENT_ID: ${PROMETHEUS_CLIENT_ID}
+      OAUTH2_PROXY_CLIENT_SECRET: ${PROMETHEUS_CLIENT_SECRET}
+      OAUTH2_PROXY_REDIRECT_URL: https://prometheus.${SERVER_NAME}/oauth2/callback
+      OAUTH2_PROXY_COOKIE_SECRET: ${PROMETHEUS_COOKIE_SECRET}
+      OAUTH2_PROXY_EMAIL_DOMAINS: ${PROMETHEUS_EMAIL_DOMAIN}
+      OAUTH2_PROXY_UPSTREAMS: http://prometheus:9090
+    expose:
+      - 4180
 
   node-exporter:
     labels:

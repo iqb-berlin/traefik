@@ -1,7 +1,8 @@
-x-env-logging: &env-logging
+x-logging-options: &default-logging-options
   options:
     max-size: "10m"
     max-file: "3"
+
 
 services:
   ingress-controller:
@@ -37,7 +38,7 @@ services:
     networks:
       - application-network
     logging:
-      <<: *env-logging
+      <<: *default-logging-options
 
   prometheus:
     image: prom/prometheus:v2.43.0
@@ -50,7 +51,18 @@ services:
     networks:
       - application-network
     logging:
-      <<: *env-logging
+      <<: *default-logging-options
+
+  prometheus-oauth2-proxy:
+    image: &oauth2-proxy-image quay.io/oauth2-proxy/oauth2-proxy:v7.5.0
+    restart: always
+    depends_on:
+      - identity-provider
+      - prometheus
+    networks:
+      - application-network
+    deploy:
+      mode: global
 
   node-exporter:
     image: prom/node-exporter:v1.6.1
@@ -69,7 +81,7 @@ services:
       - application-network
     restart: always
     logging:
-      <<: *env-logging
+      <<: *default-logging-options
     deploy:
       mode: global
       resources:
@@ -94,7 +106,7 @@ services:
     networks:
       - application-network
     logging:
-      <<: *env-logging
+      <<: *default-logging-options
     deploy:
       mode: global
       resources:
@@ -113,7 +125,7 @@ services:
     networks:
       - application-network
     logging:
-      <<: *env-logging
+      <<: *default-logging-options
     deploy:
       mode: global
 
