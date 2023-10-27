@@ -192,6 +192,17 @@ services:
     deploy:
       mode: global
 
+  dozzle-oauth2-proxy:
+    image: *oauth2-proxy-image
+    restart: always
+    depends_on:
+      - identity-provider
+      - dozzle
+    networks:
+      - application-network
+    deploy:
+      mode: global
+
 
 volumes:
   grafana_vol:
