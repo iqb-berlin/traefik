@@ -16,6 +16,17 @@ services:
       - ingress-network
       - application-network
 
+  ingress-oauth2-proxy:
+    image: &oauth2-proxy-image quay.io/oauth2-proxy/oauth2-proxy:v7.5.1
+    restart: always
+    depends_on:
+      - ingress-controller
+      - identity-provider
+    networks:
+      - application-network
+    deploy:
+      mode: global
+
   maintenance-page:
     image: nginx:stable
     restart: always
@@ -95,11 +106,11 @@ services:
       <<: *default-logging-options
 
   prometheus-oauth2-proxy:
-    image: &oauth2-proxy-image quay.io/oauth2-proxy/oauth2-proxy:v7.5.0
+    image: *oauth2-proxy-image
     restart: always
     depends_on:
-      - identity-provider
       - prometheus
+      - identity-provider
     networks:
       - application-network
     deploy:
@@ -170,8 +181,8 @@ services:
     image: *oauth2-proxy-image
     restart: always
     depends_on:
-      - identity-provider
       - cadvisor
+      - identity-provider
     networks:
       - application-network
     deploy:
@@ -196,8 +207,8 @@ services:
     image: *oauth2-proxy-image
     restart: always
     depends_on:
-      - identity-provider
       - dozzle
+      - identity-provider
     networks:
       - application-network
     deploy:

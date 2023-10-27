@@ -20,6 +20,7 @@ services:
       # - "--log.level=DEBUG"
       # - "--accesslog=true"
       - "--api.dashboard=true"
+      - "--api.insecure=true"
       - "--entryPoints.web.address=:80"
       - "--entryPoints.web.http.redirections.entryPoint.to=websecure"
       - "--entryPoints.web.http.redirections.entryPoint.scheme=https"
@@ -31,7 +32,7 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
     labels:
-      - "traefik.enable=true"
+      - "traefik.enable=false"
       - "traefik.http.routers.traefik-ui.entrypoints=websecure"
       - "traefik.http.routers.traefik-ui.tls=true"
       - "traefik.http.routers.traefik-ui.rule=Host(`traefik.${SERVER_NAME}`)"
@@ -57,6 +58,37 @@ services:
       - ./config/traefik/tls-config.yaml:/config/tls-config.yaml
       - ./secrets/traefik/certificate.pem:/secrets/certificate.pem:ro
       - ./secrets/traefik/privkey.pem:/secrets/privkey.pem:ro
+
+  ingress-oauth2-proxy:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ingress-oauth.entrypoints=websecure"
+      - "traefik.http.routers.ingress-oauth.tls=true"
+      - "traefik.http.routers.ingress-oauth.rule=Host(`traefik.${SERVER_NAME}`)"
+      - "traefik.http.routers.ingress-oauth.middlewares=security-headers"
+      - "traefik.http.middlewares.security-headers.headers.stsSeconds=63072000"
+      - "traefik.http.middlewares.security-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.security-headers.headers.stsPreload=true"
+      - "traefik.http.middlewares.security-headers.headers.forceSTSHeader=true"
+      - "traefik.http.middlewares.security-headers.headers.customFrameOptionsValue=SAMEORIGIN"
+      - "traefik.http.middlewares.security-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.security-headers.headers.browserXssFilter=true"
+      # - "traefik.http.middlewares.security-headers.headers.contentSecurityPolicy=frame-src 'self'; frame-ancestors 'self'; object-src 'none';"
+      - "traefik.http.middlewares.security-headers.headers.referrerPolicy=no-referrer"
+      - "traefik.http.middlewares.maintenance-page.errors.status=501,502"
+      - "traefik.http.middlewares.maintenance-page.errors.service=maintenance-page@docker"
+      - "traefik.http.middlewares.maintenance-page.errors.query=/"
+      - "traefik.docker.network=app-net"
+    environment:
+      <<: *env-oauth2-proxy
+      OAUTH2_PROXY_CLIENT_ID: ${TRAEFIK_CLIENT_ID}
+      OAUTH2_PROXY_CLIENT_SECRET: ${TRAEFIK_CLIENT_SECRET}
+      OAUTH2_PROXY_REDIRECT_URL: https://traefik.${SERVER_NAME}/oauth2/callback
+      OAUTH2_PROXY_COOKIE_SECRET: ${TRAEFIK_COOKIE_SECRET}
+      OAUTH2_PROXY_EMAIL_DOMAINS: ${TRAEFIK_EMAIL_DOMAIN}
+      OAUTH2_PROXY_UPSTREAMS: http://ingress-controller:8080
+    expose:
+      - 4180
 
   maintenance-page:
     labels:
