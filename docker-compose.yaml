@@ -142,8 +142,11 @@ services:
     restart: always
     healthcheck:
       test: [ "CMD", "pg_isready", "-q", "-d", "${POSTGRES_DB}", "-U", "${POSTGRES_USER}" ]
-      interval: 1s
-      retries: 120
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+      start_interval: 1s
+      retries: 5
     volumes:
       - keycloak_vol:/var/lib/postgresql/data
     environment:
