@@ -155,7 +155,7 @@ services:
 
   cadvisor:
     labels:
-      - "traefik.enable=true"
+      - "traefik.enable=false"
       - "traefik.http.routers.cadvisor.entrypoints=websecure"
       - "traefik.http.routers.cadvisor.tls=true"
       - "traefik.http.routers.cadvisor.rule=Host(`cadvisor.${SERVER_NAME}`)"
@@ -163,6 +163,25 @@ services:
       - "traefik.http.routers.cadvisor.service=cadvisor"
       - "traefik.http.services.cadvisor.loadbalancer.server.port=8080"
       - "traefik.docker.network=app-net"
+
+  cadvisor-oauth2-proxy:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cadvisor-oauth.entrypoints=websecure"
+      - "traefik.http.routers.cadvisor-oauth.tls=true"
+      - "traefik.http.routers.cadvisor-oauth.rule=Host(`cadvisor.${SERVER_NAME}`)"
+      - "traefik.http.routers.cadvisor-oauth.middlewares=security-headers"
+      - "traefik.docker.network=app-net"
+    environment:
+      <<: *env-oauth2-proxy
+      OAUTH2_PROXY_CLIENT_ID: ${CADVISOR_CLIENT_ID}
+      OAUTH2_PROXY_CLIENT_SECRET: ${CADVISOR_CLIENT_SECRET}
+      OAUTH2_PROXY_REDIRECT_URL: https://cadvisor.${SERVER_NAME}/oauth2/callback
+      OAUTH2_PROXY_COOKIE_SECRET: ${CADVISOR_COOKIE_SECRET}
+      OAUTH2_PROXY_EMAIL_DOMAINS: ${CADVISOR_EMAIL_DOMAIN}
+      OAUTH2_PROXY_UPSTREAMS: http://cadvisor:8080
+    expose:
+      - 4180
 
   dozzle:
     labels:

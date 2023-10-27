@@ -25,6 +25,47 @@ services:
     networks:
       - application-network
 
+  identity-provider:
+    image: quay.io/keycloak/keycloak:22.0
+    restart: always
+    depends_on:
+      identity-provider-db:
+        condition: service_healthy
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://identity-provider-db/${POSTGRES_DB}
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_HOSTNAME: keycloak.${SERVER_NAME}
+      KC_HEALTH_ENABLED: 'true'
+      KC_METRICS_ENABLED: 'true'
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KEYCLOAK_EXTRA_ARGS_PREPENDED: "--spi-login-protocol-openid-connect-legacy-logout-redirect-uri=true"
+    networks:
+      - application-network
+
+  identity-provider-db:
+    image: postgres:14.8-bookworm
+    restart: always
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-q", "-d", "${POSTGRES_DB}", "-U", "${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+      start_interval: 1s
+      retries: 5
+    volumes:
+      - keycloak_vol:/var/lib/postgresql/data
+    environment:
+      POSTGRES_HOST: identity-provider-db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    networks:
+      - application-network
+
   grafana:
     image: grafana/grafana:9.5.1
     restart: always
@@ -125,6 +166,17 @@ services:
           cpus: "0.5"
           memory: "256M"
 
+  cadvisor-oauth2-proxy:
+    image: *oauth2-proxy-image
+    restart: always
+    depends_on:
+      - identity-provider
+      - cadvisor
+    networks:
+      - application-network
+    deploy:
+      mode: global
+
   dozzle:
     image: amir20/dozzle:v4.11.2
     restart: always
@@ -139,47 +191,6 @@ services:
       <<: *default-logging-options
     deploy:
       mode: global
-
-  identity-provider:
-    image: quay.io/keycloak/keycloak:22.0
-    restart: always
-    depends_on:
-      identity-provider-db:
-        condition: service_healthy
-    environment:
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://identity-provider-db/${POSTGRES_DB}
-      KC_DB_USERNAME: ${POSTGRES_USER}
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
-      KC_HOSTNAME: keycloak.${SERVER_NAME}
-      KC_HEALTH_ENABLED: 'true'
-      KC_METRICS_ENABLED: 'true'
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-      KEYCLOAK_EXTRA_ARGS_PREPENDED: "--spi-login-protocol-openid-connect-legacy-logout-redirect-uri=true"
-    networks:
-      - application-network
-
-  identity-provider-db:
-    image: postgres:14.8-bookworm
-    restart: always
-    healthcheck:
-      test: [ "CMD", "pg_isready", "-q", "-d", "${POSTGRES_DB}", "-U", "${POSTGRES_USER}" ]
-      interval: 10s
-      timeout: 3s
-      start_period: 60s
-      start_interval: 1s
-      retries: 5
-    volumes:
-      - keycloak_vol:/var/lib/postgresql/data
-    environment:
-      POSTGRES_HOST: identity-provider-db
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    networks:
-      - application-network
 
 
 volumes:
