@@ -15,7 +15,7 @@ x-env-oauth2-proxy: &env-oauth2-proxy
 
 
 services:
-  ingress-controller:
+  traefik:
     command:
       # - "--log.level=DEBUG"
       # - "--accesslog=true"
@@ -59,13 +59,13 @@ services:
       - ./secrets/traefik/certificate.pem:/secrets/certificate.pem:ro
       - ./secrets/traefik/privkey.pem:/secrets/privkey.pem:ro
 
-  ingress-oauth2-proxy:
+  traefik-oauth2-proxy:
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.ingress-oauth.entrypoints=websecure"
-      - "traefik.http.routers.ingress-oauth.tls=true"
-      - "traefik.http.routers.ingress-oauth.rule=Host(`traefik.${SERVER_NAME}`)"
-      - "traefik.http.routers.ingress-oauth.middlewares=security-headers"
+      - "traefik.http.routers.traefik-oauth.entrypoints=websecure"
+      - "traefik.http.routers.traefik-oauth.tls=true"
+      - "traefik.http.routers.traefik-oauth.rule=Host(`traefik.${SERVER_NAME}`)"
+      - "traefik.http.routers.traefik-oauth.middlewares=security-headers"
       - "traefik.http.middlewares.security-headers.headers.stsSeconds=63072000"
       - "traefik.http.middlewares.security-headers.headers.stsIncludeSubdomains=true"
       - "traefik.http.middlewares.security-headers.headers.stsPreload=true"
@@ -86,7 +86,7 @@ services:
       OAUTH2_PROXY_REDIRECT_URL: https://traefik.${SERVER_NAME}/oauth2/callback
       OAUTH2_PROXY_COOKIE_SECRET: ${TRAEFIK_COOKIE_SECRET}
       OAUTH2_PROXY_EMAIL_DOMAINS: ${TRAEFIK_EMAIL_DOMAIN}
-      OAUTH2_PROXY_UPSTREAMS: http://ingress-controller:8080
+      OAUTH2_PROXY_UPSTREAMS: http://traefik:8080
     expose:
       - 4180
 
