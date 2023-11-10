@@ -134,6 +134,25 @@ services:
       - "traefik.http.services.node-exporter.loadbalancer.server.port=9100"
       - "traefik.docker.network=app-net"
 
+  node-exporter-oauth2-proxy:
+    labels:
+      - "traefik.enable=false"
+      - "traefik.http.routers.node-exporter-oauth.entrypoints=websecure"
+      - "traefik.http.routers.node-exporter-oauth.tls=true"
+      - "traefik.http.routers.node-exporter-oauth.rule=Host(`node-exporter.${SERVER_NAME}`)"
+      - "traefik.http.routers.node-exporter-oauth.middlewares=security-headers"
+      - "traefik.docker.network=app-net"
+    environment:
+      <<: *env-oauth2-proxy
+      OAUTH2_PROXY_CLIENT_ID: ${NODE_EXPORTER_CLIENT_ID}
+      OAUTH2_PROXY_CLIENT_SECRET: ${NODE_EXPORTER_CLIENT_SECRET}
+      OAUTH2_PROXY_REDIRECT_URL: https://node-exporter.${SERVER_NAME}/oauth2/callback
+      OAUTH2_PROXY_COOKIE_SECRET: ${NODE_EXPORTER_COOKIE_SECRET}
+      OAUTH2_PROXY_EMAIL_DOMAINS: ${NODE_EXPORTER_EMAIL_DOMAIN}
+      OAUTH2_PROXY_UPSTREAMS: http://node-exporter:9100
+    expose:
+      - 4180
+
   cadvisor:
     labels:
       - "traefik.enable=true"

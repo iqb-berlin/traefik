@@ -89,6 +89,17 @@ services:
           cpus: "0.5"
           memory: "256M"
 
+  node-exporter-oauth2-proxy:
+    image: *oauth2-proxy-image
+    restart: always
+    depends_on:
+      - identity-provider
+      - node-exporter
+    networks:
+      - application-network
+    deploy:
+      mode: global
+
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.47.2
     restart: always
