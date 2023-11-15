@@ -3,8 +3,8 @@ x-env-oauth2-proxy: &env-oauth2-proxy
   OAUTH2_PROXY_OIDC_ISSUER_URL: https://keycloak.${SERVER_NAME}/realms/iqb
   OAUTH2_PROXY_SKIP_OIDC_DISCOVERY: true
   OAUTH2_PROXY_LOGIN_URL: https://keycloak.${SERVER_NAME}/realms/iqb/protocol/openid-connect/auth
-  OAUTH2_PROXY_REDEEM_URL: http://identity-provider:8080/realms/iqb/protocol/openid-connect/token
-  OAUTH2_PROXY_OIDC_JWKS_URL: http://identity-provider:8080/realms/iqb/protocol/openid-connect/certs
+  OAUTH2_PROXY_REDEEM_URL: http://keycloak:8080/realms/iqb/protocol/openid-connect/token
+  OAUTH2_PROXY_OIDC_JWKS_URL: http://keycloak:8080/realms/iqb/protocol/openid-connect/certs
   OAUTH2_PROXY_COOKIE_SECURE: true
   OAUTH2_PROXY_SCOPE: openid
   OAUTH2_PROXY_CODE_CHALLENGE_METHOD: S256
@@ -100,14 +100,14 @@ services:
       - "traefik.http.routers.maintenance-page.middlewares=maintenance-page@docker"
       - "traefik.http.services.maintenance-page.loadbalancer.server.port=80"
 
-  identity-provider:
+  keycloak:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.keycloak.entrypoints=websecure"
       - "traefik.http.routers.keycloak.tls=true"
       - "traefik.http.routers.keycloak.rule=Host(`keycloak.${SERVER_NAME}`)"
       - "traefik.http.routers.keycloak.middlewares=security-headers"
-      - "traefik.http.routers.keycloak.service=identity-provider-traefik@docker"
+      - "traefik.http.routers.keycloak.service=keycloak-traefik@docker"
       - "traefik.docker.network=app-net"
     command: [ 'start', '--proxy=edge' ]
     environment:

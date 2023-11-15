@@ -21,7 +21,7 @@ services:
     restart: always
     depends_on:
       - traefik
-      - identity-provider
+      - keycloak
     networks:
       - application-network
     deploy:
@@ -36,7 +36,7 @@ services:
     networks:
       - application-network
 
-  identity-provider:
+  keycloak:
     image: quay.io/keycloak/keycloak:22.0
     restart: always
     depends_on:
@@ -110,7 +110,7 @@ services:
     restart: always
     depends_on:
       - prometheus
-      - identity-provider
+      - keycloak
     networks:
       - application-network
     deploy:
@@ -145,7 +145,7 @@ services:
     image: *oauth2-proxy-image
     restart: always
     depends_on:
-      - identity-provider
+      - keycloak
       - node-exporter
     networks:
       - application-network
@@ -182,7 +182,7 @@ services:
     restart: always
     depends_on:
       - cadvisor
-      - identity-provider
+      - keycloak
     networks:
       - application-network
     deploy:
@@ -208,7 +208,7 @@ services:
     restart: always
     depends_on:
       - dozzle
-      - identity-provider
+      - keycloak
     networks:
       - application-network
     deploy:

@@ -88,12 +88,12 @@ services:
       - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
       - "traefik.docker.network=app-net"
 
-  identity-provider:
+  keycloak:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.keycloak.entrypoints=web, traefik"
       - "traefik.http.routers.keycloak.rule=Host(`keycloak.${SERVER_NAME}`)"
-      - "traefik.http.routers.keycloak.service=identity-provider-traefik@docker"
+      - "traefik.http.routers.keycloak.service=keycloak-traefik@docker"
       - "traefik.docker.network=app-net"
     build:
       context: apps/keycloak
