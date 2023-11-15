@@ -103,6 +103,6 @@ services:
       KC_HOSTNAME_STRICT_HTTPS: 'false'
       KEYCLOAK_LOGLEVEL: DEBUG
 
-  identity-provider-db:
+  keycloak-db:
     ports:
       - "${POSTGRES_PORT}:5432"

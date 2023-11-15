@@ -40,11 +40,11 @@ services:
     image: quay.io/keycloak/keycloak:22.0
     restart: always
     depends_on:
-      identity-provider-db:
+      keycloak-db:
         condition: service_healthy
     environment:
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://identity-provider-db/${POSTGRES_DB}
+      KC_DB_URL: jdbc:postgresql://keycloak-db/${POSTGRES_DB}
       KC_DB_USERNAME: ${POSTGRES_USER}
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
       KC_HOSTNAME: keycloak.${SERVER_NAME}
@@ -56,7 +56,7 @@ services:
     networks:
       - application-network
 
-  identity-provider-db:
+  keycloak-db:
     image: postgres:14.8-bookworm
     restart: always
     healthcheck:
@@ -69,7 +69,7 @@ services:
     volumes:
       - keycloak_vol:/var/lib/postgresql/data
     environment:
-      POSTGRES_HOST: identity-provider-db
+      POSTGRES_HOST: keycloak-db
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
