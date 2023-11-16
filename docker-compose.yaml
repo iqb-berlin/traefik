@@ -42,6 +42,7 @@ services:
     depends_on:
       keycloak-db:
         condition: service_healthy
+    command: [ 'start', '--proxy=edge', '--import-realm' ]
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-db/${POSTGRES_DB}
@@ -50,9 +51,13 @@ services:
       KC_HOSTNAME: keycloak.${SERVER_NAME}
       KC_HEALTH_ENABLED: 'true'
       KC_METRICS_ENABLED: 'true'
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KEYCLOAK_ADMIN: ${ADMIN_NAME}
+      KEYCLOAK_ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       KEYCLOAK_EXTRA_ARGS_PREPENDED: "--spi-login-protocol-openid-connect-legacy-logout-redirect-uri=true"
+    env_file:
+      - config/keycloak/iqb-realm.config
+    volumes:
+      - ./config/keycloak/iqb-realm.json:/opt/keycloak/data/import/iqb-realm.json
     networks:
       - application-network
 
@@ -67,7 +72,7 @@ services:
       start_interval: 1s
       retries: 5
     volumes:
-      - keycloak_vol:/var/lib/postgresql/data
+      - keycloak_db_vol:/var/lib/postgresql/data
     environment:
       POSTGRES_HOST: keycloak-db
       POSTGRES_PORT: 5432
@@ -218,7 +223,7 @@ services:
 volumes:
   grafana_vol:
   prometheus_vol:
-  keycloak_vol:
+  keycloak_db_vol:
 
 networks:
   ingress-network:
