@@ -341,8 +341,8 @@ generate_admin_credentials() {
   read -p "Traefik administrator password: " -er TRAEFIK_ADMIN_PASSWORD
 
   BASIC_AUTH_CRED=$TRAEFIK_ADMIN_NAME:$(openssl passwd -apr1 "$TRAEFIK_ADMIN_PASSWORD" | sed -e s/\\$/\\$\\$/g)
-  printf "TRAEFIK_AUTH: %s\n\n" "$BASIC_AUTH_CRED"
-  sed -i "s#TRAEFIK_AUTH.*#TRAEFIK_AUTH=$BASIC_AUTH_CRED#" .env.traefik
+  printf "ADMIN_BASIC_AUTH: %s\n\n" "$BASIC_AUTH_CRED"
+  sed -i "s#ADMIN_BASIC_AUTH.*#ADMIN_BASIC_AUTH=$BASIC_AUTH_CRED#" .env.traefik
 
   printf "The traefik administrator credentials have been updated.\n\n"
 }

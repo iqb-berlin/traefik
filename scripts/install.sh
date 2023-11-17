@@ -8,27 +8,6 @@ REPO_API="https://api.github.com/repos/iqb-berlin/$APP_NAME"
 REQUIRED_PACKAGES=("docker -v" "docker compose version")
 OPTIONAL_PACKAGES=("make -v")
 
-declare -A ENV_VARS
-# Server
-ENV_VARS[SERVER_NAME]=base_domain.org
-
-# Ports
-ENV_VARS[HTTP_PORT]=80
-ENV_VARS[HTTPS_PORT]=443
-
-# Network
-ENV_VARS[DOCKER_DAEMON_MTU]=1500
-
-# Identity Provider
-ENV_VARS[ADMIN_NAME]=admin
-ENV_VARS[ADMIN_PASSWORD]=$(tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 16 | head -n 1)
-ENV_VARS[POSTGRES_USER]=keycloak
-ENV_VARS[POSTGRES_PASSWORD]=$(tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 16 | head -n 1)
-ENV_VARS[POSTGRES_DB]=keycloak
-
-ENV_VAR_ORDER=(SERVER_NAME HTTP_PORT HTTPS_PORT DOCKER_DAEMON_MTU ADMIN_NAME ADMIN_PASSWORD POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB)
-
-
 check_prerequisites() {
   printf "1. Checking prerequisites:\n\n"
 
@@ -101,6 +80,7 @@ prepare_installation_dir() {
 
   mkdir -p "$TARGET_DIR"/config/grafana/provisioning/dashboards
   mkdir -p "$TARGET_DIR"/config/grafana/provisioning/datasources
+  mkdir -p "$TARGET_DIR"/config/keycloak
   mkdir -p "$TARGET_DIR"/config/maintenance-page
   mkdir -p "$TARGET_DIR"/config/prometheus
   mkdir -p "$TARGET_DIR"/config/traefik
@@ -127,14 +107,16 @@ download_files() {
   download_file docker-compose.traefik.yaml docker-compose.yaml
   download_file docker-compose.traefik.prod.yaml docker-compose.traefik.prod.yaml
   download_file .env.traefik.template .env.traefik.template
-  download_file config/traefik/tls-config.yaml config/traefik/tls-config.yaml
-  download_file config/maintenance-page/default.conf.template config/maintenance-page/default.conf.template
-  download_file config/maintenance-page/maintenance.html config/maintenance-page/maintenance.html
-  download_file config/prometheus/prometheus.yaml config/prometheus/prometheus.yaml
-  download_file config/grafana/config.monitoring config/grafana/config.monitoring
   download_file config/grafana/provisioning/dashboards/dashboard.yaml config/grafana/provisioning/dashboards/dashboard.yaml
   download_file config/grafana/provisioning/dashboards/traefik_rev4.json config/grafana/provisioning/dashboards/traefik_rev4.json
   download_file config/grafana/provisioning/datasources/datasource.yaml config/grafana/provisioning/datasources/datasource.yaml
+  download_file config/grafana/oauth2.config config/grafana/oauth2.config
+  download_file config/keycloak/iqb-realm.config config/keycloak/iqb-realm.config
+  download_file config/keycloak/iqb-realm.json config/keycloak/iqb-realm.json
+  download_file config/maintenance-page/default.conf.template config/maintenance-page/default.conf.template
+  download_file config/maintenance-page/maintenance.html config/maintenance-page/maintenance.html
+  download_file config/prometheus/prometheus.yaml config/prometheus/prometheus.yaml
+  download_file config/traefik/tls-config.yaml config/traefik/tls-config.yaml
   download_file scripts/traefik.mk scripts/make/prod.mk
   download_file update_$APP_NAME.sh scripts/update.sh
   chmod +x update_$APP_NAME.sh
@@ -148,18 +130,142 @@ customize_settings() {
 
   # Setup environment variables
   printf "5. Set Environment variables (default passwords are generated randomly):\n"
+  source .env.traefik
 
+  ## Version
   sed -i "s#IQB_TRAEFIK_VERSION_TAG.*#IQB_TRAEFIK_VERSION_TAG=$TARGET_TAG#" .env.traefik
 
-  for VAR in "${ENV_VAR_ORDER[@]}"; do
-    read -p "$VAR: " -er -i ${ENV_VARS[$VAR]} NEW_ENV_VAR_VALUE
-    sed -i "s#$VAR.*#$VAR=$NEW_ENV_VAR_VALUE#" .env.traefik
-  done
+  ## Server
+  printf "5.1 Server base domain name:\n"
+  read -p "SERVER_NAME: " -er -i "${SERVER_NAME}" SERVER_NAME
+  sed -i "s#SERVER_NAME.*#SERVER_NAME=$SERVER_NAME#" .env.traefik
 
-  source .env.traefik
-  BASIC_AUTH_CRED=$KEYCLOAK_ADMIN:$(openssl passwd -apr1 "$KEYCLOAK_ADMIN_PASSWORD" | sed -e s/\\$/\\$\\$/g)
-  printf "TRAEFIK_AUTH: %s\n" "$BASIC_AUTH_CRED"
-  sed -i "s#TRAEFIK_AUTH.*#TRAEFIK_AUTH=$BASIC_AUTH_CRED#" .env.traefik
+  ## Ports
+  printf "\n5.2 Ports:\n"
+  read -p "HTTP_PORT: " -er -i "${HTTP_PORT}" HTTP_PORT
+  sed -i "s#HTTP_PORT.*#HTTP_PORT=$HTTP_PORT#" .env.traefik
+
+  read -p "HTTPS_PORT: " -er -i "${HTTPS_PORT}" HTTPS_PORT
+  sed -i "s#HTTPS_PORT.*#HTTPS_PORT=$HTTPS_PORT#" .env.traefik
+
+  ## Network
+  printf "\n5.3 Network:\n"
+  printf "Docker MTU have to be equal or less host network MTU!\n"
+  printf "Current host network MTUs:\n"
+  ip a | grep mtu | grep -v "lo:\|docker\|veth\|br-" | cut -f6- -d ' ' --complement
+  read -p "DOCKER_DAEMON_MTU: " -er -i 1500 DOCKER_DAEMON_MTU
+  sed -i "s#DOCKER_DAEMON_MTU.*#DOCKER_DAEMON_MTU=$DOCKER_DAEMON_MTU#" .env.traefik
+
+  ## Super User
+  printf "\n5.4 Super User (admin of admins):\n"
+  read -p "ADMIN_NAME: " -er -i "${ADMIN_NAME}" ADMIN_NAME
+  sed -i "s#ADMIN_NAME.*#ADMIN_NAME=$ADMIN_NAME#" .env.traefik
+
+  read -p "ADMIN_EMAIL: " -er -i "${ADMIN_EMAIL}" ADMIN_EMAIL
+  sed -i "s#ADMIN_EMAIL.*#ADMIN_EMAIL=$ADMIN_EMAIL#" .env.traefik
+
+  ADMIN_PASSWORD=$(tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 16 | head -n 1)
+  read -p "ADMIN_PASSWORD: " -er -i "${ADMIN_PASSWORD}" ADMIN_PASSWORD
+  sed -i "s#ADMIN_PASSWORD.*#ADMIN_PASSWORD=$ADMIN_PASSWORD#" .env.traefik
+
+  ADMIN_CREATED_TIMESTAMP=$(date -u +"%s")000
+  sed -i "s#ADMIN_CREATED_TIMESTAMP.*#ADMIN_CREATED_TIMESTAMP=$ADMIN_CREATED_TIMESTAMP#" .env.traefik
+
+  BASIC_AUTH_CRED=$ADMIN_NAME:$(openssl passwd -apr1 "$ADMIN_PASSWORD" | sed -e s/\\$/\\$\\$/g)
+  printf "ADMIN_BASIC_AUTH: %s\n" "$BASIC_AUTH_CRED"
+  sed -i "s#ADMIN_BASIC_AUTH.*#ADMIN_BASIC_AUTH=$BASIC_AUTH_CRED#" .env.traefik
+
+  printf "\n5.5 OpenID Connect with OAuth2 Authentication:\n"
+  printf "5.5.1 Keycloak DB:\n"
+  read -p "POSTGRES_USER: " -er -i "${POSTGRES_USER}" POSTGRES_USER
+  sed -i "s#POSTGRES_USER.*#POSTGRES_USER=$POSTGRES_USER#" .env.traefik
+
+  POSTGRES_PASSWORD=$(tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 16 | head -n 1)
+  read -p "POSTGRES_PASSWORD: " -er -i "${POSTGRES_PASSWORD}" POSTGRES_PASSWORD
+  sed -i "s#POSTGRES_PASSWORD.*#POSTGRES_PASSWORD=$POSTGRES_PASSWORD#" .env.traefik
+
+  read -p "POSTGRES_DB: " -er -i "${POSTGRES_DB}" POSTGRES_DB
+  sed -i "s#POSTGRES_DB.*#POSTGRES_DB=$POSTGRES_DB#" .env.traefik
+
+  printf "\n5.5.2 OAuth2 Clients:\n"
+  printf "Client IDs will be BASE64 encoded.\n"
+  printf "\n5.5.2.1 Traefik Dashboard Client:\n"
+  read -p "TRAEFIK_CLIENT_ID: " -er -i "${TRAEFIK_CLIENT_ID}" TRAEFIK_CLIENT_ID
+  TRAEFIK_CLIENT_ID=$(printf '%s' "${TRAEFIK_CLIENT_ID}" | openssl base64)
+  sed -i "s#TRAEFIK_CLIENT_ID.*#TRAEFIK_CLIENT_ID=$TRAEFIK_CLIENT_ID#" .env.traefik
+
+  TRAEFIK_CLIENT_SECRET=$(tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 32 | head -n 1)
+  sed -i "s#TRAEFIK_CLIENT_SECRET.*#TRAEFIK_CLIENT_SECRET=$TRAEFIK_CLIENT_SECRET#" .env.traefik
+
+  TRAEFIK_COOKIE_SECRET=$(openssl rand -base64 32 | tr -- '+/' '-_')
+  sed -i "s#TRAEFIK_COOKIE_SECRET.*#TRAEFIK_COOKIE_SECRET=$TRAEFIK_COOKIE_SECRET#" .env.traefik
+
+  read -p "TRAEFIK_EMAIL_DOMAIN: " -er -i "${TRAEFIK_EMAIL_DOMAIN}" TRAEFIK_EMAIL_DOMAIN
+  sed -i "s#TRAEFIK_EMAIL_DOMAIN.*#TRAEFIK_EMAIL_DOMAIN=$TRAEFIK_EMAIL_DOMAIN#" .env.traefik
+
+  printf "\n5.5.2.2 Grafana Client:\n"
+  read -p "GRAFANA_CLIENT_ID: " -er -i "${GRAFANA_CLIENT_ID}" GRAFANA_CLIENT_ID
+  GRAFANA_CLIENT_ID=$(printf '%s' "${GRAFANA_CLIENT_ID}" | openssl base64)
+  sed -i "s#GRAFANA_CLIENT_ID.*#GRAFANA_CLIENT_ID=$GRAFANA_CLIENT_ID#" .env.traefik
+
+  GRAFANA_CLIENT_SECRET=$(tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 32 | head -n 1)
+  sed -i "s#GRAFANA_CLIENT_SECRET.*#GRAFANA_CLIENT_SECRET=$GRAFANA_CLIENT_SECRET#" .env.traefik
+
+  printf "\n5.5.2.3 Prometheus Client:\n"
+  read -p "PROMETHEUS_CLIENT_ID: " -er -i "${PROMETHEUS_CLIENT_ID}" PROMETHEUS_CLIENT_ID
+  PROMETHEUS_CLIENT_ID=$(printf '%s' "${PROMETHEUS_CLIENT_ID}" | openssl base64)
+  sed -i "s#PROMETHEUS_CLIENT_ID.*#PROMETHEUS_CLIENT_ID=$PROMETHEUS_CLIENT_ID#" .env.traefik
+
+  PROMETHEUS_CLIENT_SECRET=$(tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 32 | head -n 1)
+  sed -i "s#PROMETHEUS_CLIENT_SECRET.*#PROMETHEUS_CLIENT_SECRET=$PROMETHEUS_CLIENT_SECRET#" .env.traefik
+
+  PROMETHEUS_COOKIE_SECRET=$(openssl rand -base64 32 | tr -- '+/' '-_')
+  sed -i "s#PROMETHEUS_COOKIE_SECRET.*#PROMETHEUS_COOKIE_SECRET=$PROMETHEUS_COOKIE_SECRET#" .env.traefik
+
+  read -p "PROMETHEUS_EMAIL_DOMAIN: " -er -i "${PROMETHEUS_EMAIL_DOMAIN}" PROMETHEUS_EMAIL_DOMAIN
+  sed -i "s#PROMETHEUS_EMAIL_DOMAIN.*#PROMETHEUS_EMAIL_DOMAIN=$PROMETHEUS_EMAIL_DOMAIN#" .env.traefik
+
+  printf "\n5.5.2.4 Node Exporter Client:\n"
+  read -p "NODE_EXPORTER_CLIENT_ID: " -er -i "${NODE_EXPORTER_CLIENT_ID}" NODE_EXPORTER_CLIENT_ID
+  NODE_EXPORTER_CLIENT_ID=$(printf '%s' "${NODE_EXPORTER_CLIENT_ID}" | openssl base64)
+  sed -i "s#NODE_EXPORTER_CLIENT_ID.*#NODE_EXPORTER_CLIENT_ID=$NODE_EXPORTER_CLIENT_ID#" .env.traefik
+
+  NODE_EXPORTER_CLIENT_SECRET=$(tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 32 | head -n 1)
+  sed -i "s#NODE_EXPORTER_CLIENT_SECRET.*#NODE_EXPORTER_CLIENT_SECRET=$NODE_EXPORTER_CLIENT_SECRET#" .env.traefik
+
+  NODE_EXPORTER_COOKIE_SECRET=$(openssl rand -base64 32 | tr -- '+/' '-_')
+  sed -i "s#NODE_EXPORTER_COOKIE_SECRET.*#NODE_EXPORTER_COOKIE_SECRET=$NODE_EXPORTER_COOKIE_SECRET#" .env.traefik
+
+  read -p "NODE_EXPORTER_EMAIL_DOMAIN: " -er -i "${NODE_EXPORTER_EMAIL_DOMAIN}" NODE_EXPORTER_EMAIL_DOMAIN
+  sed -i "s#NODE_EXPORTER_EMAIL_DOMAIN.*#NODE_EXPORTER_EMAIL_DOMAIN=$NODE_EXPORTER_EMAIL_DOMAIN#" .env.traefik
+
+  printf "\n5.5.2.5 cAdvisor Client:\n"
+  read -p "CADVISOR_CLIENT_ID: " -er -i "${CADVISOR_CLIENT_ID}" CADVISOR_CLIENT_ID
+  CADVISOR_CLIENT_ID=$(printf '%s' "${CADVISOR_CLIENT_ID}" | openssl base64)
+  sed -i "s#CADVISOR_CLIENT_ID.*#CADVISOR_CLIENT_ID=$CADVISOR_CLIENT_ID#" .env.traefik
+
+  CADVISOR_CLIENT_SECRET=$(tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 32 | head -n 1)
+  sed -i "s#CADVISOR_CLIENT_SECRET.*#CADVISOR_CLIENT_SECRET=$CADVISOR_CLIENT_SECRET#" .env.traefik
+
+  CADVISOR_COOKIE_SECRET=$(openssl rand -base64 32 | tr -- '+/' '-_')
+  sed -i "s#CADVISOR_COOKIE_SECRET.*#CADVISOR_COOKIE_SECRET=$CADVISOR_COOKIE_SECRET#" .env.traefik
+
+  read -p "CADVISOR_EMAIL_DOMAIN: " -er -i "${CADVISOR_EMAIL_DOMAIN}" CADVISOR_EMAIL_DOMAIN
+  sed -i "s#CADVISOR_EMAIL_DOMAIN.*#CADVISOR_EMAIL_DOMAIN=$CADVISOR_EMAIL_DOMAIN#" .env.traefik
+
+  printf "\n5.5.2.6 Dozzle Client:\n"
+  read -p "DOZZLE_CLIENT_ID: " -er -i "${DOZZLE_CLIENT_ID}" DOZZLE_CLIENT_ID
+  DOZZLE_CLIENT_ID=$(printf '%s' "${DOZZLE_CLIENT_ID}" | openssl base64)
+  sed -i "s#DOZZLE_CLIENT_ID.*#DOZZLE_CLIENT_ID=$DOZZLE_CLIENT_ID#" .env.traefik
+
+  DOZZLE_CLIENT_SECRET=$(tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 32 | head -n 1)
+  sed -i "s#DOZZLE_CLIENT_SECRET.*#DOZZLE_CLIENT_SECRET=$DOZZLE_CLIENT_SECRET#" .env.traefik
+
+  DOZZLE_COOKIE_SECRET=$(openssl rand -base64 32 | tr -- '+/' '-_')
+  sed -i "s#DOZZLE_COOKIE_SECRET.*#DOZZLE_COOKIE_SECRET=$DOZZLE_COOKIE_SECRET#" .env.traefik
+
+  read -p "DOZZLE_EMAIL_DOMAIN: " -er -i "${DOZZLE_EMAIL_DOMAIN}" DOZZLE_EMAIL_DOMAIN
+  sed -i "s#DOZZLE_EMAIL_DOMAIN.*#DOZZLE_EMAIL_DOMAIN=$DOZZLE_EMAIL_DOMAIN#" .env.traefik
 
   # Setup makefiles
   sed -i "s#TRAEFIK_BASE_DIR :=.*#TRAEFIK_BASE_DIR := \\$TARGET_DIR#" scripts/traefik.mk

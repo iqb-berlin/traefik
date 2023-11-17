@@ -38,7 +38,7 @@ services:
       - "traefik.http.routers.traefik-ui.rule=Host(`traefik.${SERVER_NAME}`)"
       - "traefik.http.routers.traefik-ui.service=api@internal"
       - "traefik.http.routers.traefik-ui.middlewares=traefik-auth, security-headers"
-      - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_AUTH}"
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=${ADMIN_BASIC_AUTH}"
       - "traefik.http.middlewares.traefik-auth.basicauth.removeheader=true"
       - "traefik.http.middlewares.security-headers.headers.stsSeconds=63072000"
       - "traefik.http.middlewares.security-headers.headers.stsIncludeSubdomains=true"
