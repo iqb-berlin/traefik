@@ -84,7 +84,8 @@ prepare_installation_dir() {
   mkdir -p "$TARGET_DIR"/config/maintenance-page
   mkdir -p "$TARGET_DIR"/config/prometheus
   mkdir -p "$TARGET_DIR"/config/traefik
-  mkdir -p "$TARGET_DIR"/scripts
+  mkdir -p "$TARGET_DIR"/scripts/make
+  mkdir -p "$TARGET_DIR"/scripts/migration
   mkdir -p "$TARGET_DIR"/secrets/traefik
 
   cd "$TARGET_DIR"
@@ -117,9 +118,9 @@ download_files() {
   download_file config/maintenance-page/maintenance.html config/maintenance-page/maintenance.html
   download_file config/prometheus/prometheus.yaml config/prometheus/prometheus.yaml
   download_file config/traefik/tls-config.yaml config/traefik/tls-config.yaml
-  download_file scripts/traefik.mk scripts/make/prod.mk
-  download_file update_$APP_NAME.sh scripts/update.sh
-  chmod +x update_$APP_NAME.sh
+  download_file scripts/make/traefik.mk scripts/make/prod.mk
+  download_file scripts/update_${APP_NAME}.sh scripts/update.sh
+  chmod +x scripts/update_${APP_NAME}.sh
 
   printf "Downloads done!\n\n"
 }
@@ -268,11 +269,13 @@ customize_settings() {
   sed -i "s#DOZZLE_EMAIL_DOMAIN.*#DOZZLE_EMAIL_DOMAIN=$DOZZLE_EMAIL_DOMAIN#" .env.traefik
 
   # Setup makefiles
-  sed -i "s#TRAEFIK_BASE_DIR :=.*#TRAEFIK_BASE_DIR := \\$TARGET_DIR#" scripts/traefik.mk
+  sed -i "s#TRAEFIK_BASE_DIR :=.*#TRAEFIK_BASE_DIR := \\$TARGET_DIR#" scripts/make/traefik.mk
+  sed -i "s#scripts/update.sh#scripts/update_${APP_NAME}.sh#" scripts/make/traefik.mk
+
   if [ -f Makefile ]; then
-    printf "include %s/scripts/traefik.mk\n" "$TARGET_DIR" >>Makefile
+    printf "include %s/scripts/make/traefik.mk\n" "$TARGET_DIR" >>Makefile
   else
-    printf "include %s/scripts/traefik.mk\n" "$TARGET_DIR" >Makefile
+    printf "include %s/scripts/make/traefik.mk\n" "$TARGET_DIR" >Makefile
   fi
 
   # Generate TLS files
@@ -319,9 +322,9 @@ application_start() {
 }
 
 main() {
-  printf "\n==================================================\n"
+  printf "\n============================================================\n"
   printf "'%s' installation script started ..." $APP_NAME | tr '[:lower:]' '[:upper:]'
-  printf "\n==================================================\n"
+  printf "\n============================================================\n"
   printf "\n"
 
   check_prerequisites
