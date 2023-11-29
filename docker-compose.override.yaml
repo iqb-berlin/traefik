@@ -70,10 +70,6 @@ services:
       - "traefik.http.routers.prometheus.service=prometheus"
       - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
       - "traefik.docker.network=app-net"
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yaml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.size=256MB'
 
   node-exporter:
     labels:

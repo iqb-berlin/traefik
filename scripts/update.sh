@@ -393,23 +393,6 @@ generate_tls_certificate() {
   printf "A self-signed certificate file and a private key file have been generated.\n\n"
 }
 
-generate_admin_credentials() {
-  read -p "ADMIN_NAME: " -er -i "${ADMIN_NAME}" ADMIN_NAME
-  sed -i "s#ADMIN_NAME.*#ADMIN_NAME=$ADMIN_NAME#" .env.traefik
-
-  read -p "ADMIN_EMAIL: " -er -i "${ADMIN_EMAIL}" ADMIN_EMAIL
-  sed -i "s#ADMIN_EMAIL.*#ADMIN_EMAIL=$ADMIN_EMAIL#" .env.traefik
-
-  ADMIN_PASSWORD=$(tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 16 | head -n 1)
-  read -p "ADMIN_PASSWORD: " -er -i "${ADMIN_PASSWORD}" ADMIN_PASSWORD
-  sed -i "s#ADMIN_PASSWORD.*#ADMIN_PASSWORD=$ADMIN_PASSWORD#" .env.traefik
-
-  ADMIN_CREATED_TIMESTAMP=$(date -u +"%s")000
-  sed -i "s#ADMIN_CREATED_TIMESTAMP.*#ADMIN_CREATED_TIMESTAMP=$ADMIN_CREATED_TIMESTAMP#" .env.traefik
-
-  printf "The traefik administrator credentials have been updated.\n\n"
-}
-
 main() {
   if [ -z "$SELECTED_VERSION" ]; then
     printf "\n============================================================\n"
@@ -418,8 +401,7 @@ main() {
     printf "\n"
     printf "[1] Update %s\n" $APP_NAME
     printf "[2] Update the self-signed TLS certificate valid for 30 days\n"
-    printf "[3] Update the administrator credentials\n"
-    printf "[4] Exit update script\n\n"
+    printf "[3] Exit update script\n\n"
 
     while read -p 'What do you want to do? [1-3] ' -er -n 1 CHOICE; do
       if [ "$CHOICE" = 1 ]; then
@@ -448,13 +430,6 @@ main() {
         break
 
       elif [ "$CHOICE" = 3 ]; then
-        printf "\n=== UPDATE ADMIN CREDENTIALS ===\n\n"
-        generate_admin_credentials
-        application_restart
-
-        break
-
-      elif [ "$CHOICE" = 4 ]; then
         printf "'%s' update script finished.\n" $APP_NAME
         exit 0
 

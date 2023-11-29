@@ -31,27 +31,6 @@ services:
       - "--providers.file.filename=/config/tls-config.yaml"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-    labels:
-      - "traefik.enable=false"
-      - "traefik.http.routers.traefik-ui.entrypoints=websecure"
-      - "traefik.http.routers.traefik-ui.tls=true"
-      - "traefik.http.routers.traefik-ui.rule=Host(`traefik.${SERVER_NAME}`)"
-      - "traefik.http.routers.traefik-ui.service=api@internal"
-      - "traefik.http.routers.traefik-ui.middlewares=traefik-auth, security-headers"
-      - "traefik.http.middlewares.traefik-auth.basicauth.users=${ADMIN_BASIC_AUTH}"
-      - "traefik.http.middlewares.traefik-auth.basicauth.removeheader=true"
-      - "traefik.http.middlewares.security-headers.headers.stsSeconds=63072000"
-      - "traefik.http.middlewares.security-headers.headers.stsIncludeSubdomains=true"
-      - "traefik.http.middlewares.security-headers.headers.stsPreload=true"
-      - "traefik.http.middlewares.security-headers.headers.forceSTSHeader=true"
-      - "traefik.http.middlewares.security-headers.headers.customFrameOptionsValue=SAMEORIGIN"
-      - "traefik.http.middlewares.security-headers.headers.contentTypeNosniff=true"
-      - "traefik.http.middlewares.security-headers.headers.browserXssFilter=true"
-      # - "traefik.http.middlewares.security-headers.headers.contentSecurityPolicy=frame-src 'self'; frame-ancestors 'self'; object-src 'none';"
-      - "traefik.http.middlewares.security-headers.headers.referrerPolicy=no-referrer"
-      - "traefik.http.middlewares.maintenance-page.errors.status=501,502"
-      - "traefik.http.middlewares.maintenance-page.errors.service=maintenance-page@docker"
-      - "traefik.http.middlewares.maintenance-page.errors.query=/"
     ports:
       - "${HTTPS_PORT}:443"
     volumes:
@@ -99,6 +78,7 @@ services:
       - "traefik.http.routers.maintenance-page.rule=HostRegexp(`{host:.+}`)"
       - "traefik.http.routers.maintenance-page.middlewares=maintenance-page@docker"
       - "traefik.http.services.maintenance-page.loadbalancer.server.port=80"
+      - "traefik.docker.network=app-net"
 
   keycloak:
     labels:
@@ -133,21 +113,6 @@ services:
     env_file:
       - config/grafana/oauth2.config
 
-  prometheus:
-    labels:
-      - "traefik.enable=false"
-      - "traefik.http.routers.prometheus.entrypoints=websecure"
-      - "traefik.http.routers.prometheus.tls=true"
-      - "traefik.http.routers.prometheus.rule=Host(`prometheus.${SERVER_NAME}`)"
-      - "traefik.http.routers.prometheus.middlewares=traefik-auth, security-headers"
-      - "traefik.http.routers.prometheus.service=prometheus"
-      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
-      - "traefik.docker.network=app-net"
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yaml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.size=256MB'
-
   prometheus-oauth2-proxy:
     labels:
       - "traefik.enable=true"
@@ -166,17 +131,6 @@ services:
       OAUTH2_PROXY_UPSTREAMS: http://prometheus:9090
     expose:
       - 4180
-
-  node-exporter:
-    labels:
-      - "traefik.enable=false"
-      - "traefik.http.routers.node-exporter.entrypoints=websecure"
-      - "traefik.http.routers.node-exporter.tls=true"
-      - "traefik.http.routers.node-exporter.rule=Host(`node-exporter.${SERVER_NAME}`)"
-      - "traefik.http.routers.node-exporter.middlewares=traefik-auth, security-headers"
-      - "traefik.http.routers.node-exporter.service=node-exporter"
-      - "traefik.http.services.node-exporter.loadbalancer.server.port=9100"
-      - "traefik.docker.network=app-net"
 
   node-exporter-oauth2-proxy:
     labels:
@@ -197,17 +151,6 @@ services:
     expose:
       - 4180
 
-  cadvisor:
-    labels:
-      - "traefik.enable=false"
-      - "traefik.http.routers.cadvisor.entrypoints=websecure"
-      - "traefik.http.routers.cadvisor.tls=true"
-      - "traefik.http.routers.cadvisor.rule=Host(`cadvisor.${SERVER_NAME}`)"
-      - "traefik.http.routers.cadvisor.middlewares=traefik-auth, security-headers"
-      - "traefik.http.routers.cadvisor.service=cadvisor"
-      - "traefik.http.services.cadvisor.loadbalancer.server.port=8080"
-      - "traefik.docker.network=app-net"
-
   cadvisor-oauth2-proxy:
     labels:
       - "traefik.enable=true"
@@ -226,17 +169,6 @@ services:
       OAUTH2_PROXY_UPSTREAMS: http://cadvisor:8080
     expose:
       - 4180
-
-  dozzle:
-    labels:
-      - "traefik.enable=false"
-      - "traefik.http.routers.dozzle.entrypoints=websecure"
-      - "traefik.http.routers.dozzle.tls=true"
-      - "traefik.http.routers.dozzle.rule=Host(`dozzle.${SERVER_NAME}`)"
-      - "traefik.http.routers.dozzle.middlewares=traefik-auth, security-headers"
-      - "traefik.http.routers.dozzle.service=dozzle"
-      - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
-      - "traefik.docker.network=app-net"
 
   dozzle-oauth2-proxy:
     labels:

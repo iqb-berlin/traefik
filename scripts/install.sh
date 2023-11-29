@@ -172,10 +172,6 @@ customize_settings() {
   ADMIN_CREATED_TIMESTAMP=$(date -u +"%s")000
   sed -i "s#ADMIN_CREATED_TIMESTAMP.*#ADMIN_CREATED_TIMESTAMP=$ADMIN_CREATED_TIMESTAMP#" .env.traefik
 
-  BASIC_AUTH_CRED=$ADMIN_NAME:$(openssl passwd -apr1 "$ADMIN_PASSWORD" | sed -e s/\\$/\\$\\$/g)
-  printf "ADMIN_BASIC_AUTH: %s\n" "$BASIC_AUTH_CRED"
-  sed -i "s#ADMIN_BASIC_AUTH.*#ADMIN_BASIC_AUTH=$BASIC_AUTH_CRED#" .env.traefik
-
   printf "\n5.5 OpenID Connect with OAuth2 Authentication:\n"
   printf "5.5.1 Keycloak DB:\n"
   read -p "POSTGRES_USER: " -er -i "${POSTGRES_USER}" POSTGRES_USER

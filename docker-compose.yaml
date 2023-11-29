@@ -102,6 +102,10 @@ services:
     restart: always
     depends_on:
       - cadvisor
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yaml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.size=256MB'
     volumes:
       - ./config/prometheus/:/etc/prometheus:ro
       - prometheus_vol:/prometheus
