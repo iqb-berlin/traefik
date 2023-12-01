@@ -1,7 +1,8 @@
-x-env-logging: &env-logging
+x-logging-options: &default-logging-options
   options:
     max-size: "10m"
     max-file: "3"
+
 
 services:
   traefik:
@@ -12,8 +13,19 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
-      - traefik-network
+      - ingress-network
       - application-network
+
+  traefik-oauth2-proxy:
+    image: &oauth2-proxy-image quay.io/oauth2-proxy/oauth2-proxy:v7.5.1
+    restart: always
+    depends_on:
+      - traefik
+      - keycloak
+    networks:
+      - application-network
+    deploy:
+      mode: global
 
   maintenance-page:
     image: nginx:stable
@@ -24,30 +36,94 @@ services:
     networks:
       - application-network
 
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.47.2
+  keycloak:
+    image: quay.io/keycloak/keycloak:22.0
     restart: always
-    privileged: true
-    command:
-      - "--enable_metrics=cpu,memory,network"
-      - "--store_container_labels=false"
-      - "--docker_only=true"
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    command: [ 'start', '--proxy=edge', '--import-realm' ]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db/${POSTGRES_DB}
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_HOSTNAME: keycloak.${SERVER_NAME}
+      KC_HEALTH_ENABLED: 'true'
+      KC_METRICS_ENABLED: 'true'
+      KEYCLOAK_ADMIN: ${ADMIN_NAME}
+      KEYCLOAK_ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      KEYCLOAK_EXTRA_ARGS_PREPENDED: "--spi-login-protocol-openid-connect-legacy-logout-redirect-uri=true"
+    env_file:
+      - config/keycloak/iqb-realm.config
     volumes:
-      - "/:/rootfs:ro"
-      - "/var/run:/var/run:ro"
-      - "/sys:/sys:ro"
-      - "/var/lib/docker/:/var/lib/docker:ro"
-      - "/dev/disk/:/dev/disk:ro"
+      - ./config/keycloak/iqb-realm.json:/opt/keycloak/data/import/iqb-realm.json
+    networks:
+      - application-network
+
+  keycloak-db:
+    image: postgres:14.8-bookworm
+    restart: always
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-q", "-d", "${POSTGRES_DB}", "-U", "${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+      start_interval: 1s
+      retries: 5
+    volumes:
+      - keycloak_db_vol:/var/lib/postgresql/data
+    environment:
+      POSTGRES_HOST: keycloak-db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    networks:
+      - application-network
+
+  grafana:
+    image: grafana/grafana:9.5.1
+    restart: always
+    depends_on:
+      - prometheus
+    environment:
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_vol:/var/lib/grafana
+      - ./config/grafana/provisioning/:/etc/grafana/provisioning/
     networks:
       - application-network
     logging:
-      <<: *env-logging
+      <<: *default-logging-options
+
+  prometheus:
+    image: prom/prometheus:v2.43.0
+    restart: always
+    depends_on:
+      - cadvisor
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yaml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.size=256MB'
+    volumes:
+      - ./config/prometheus/:/etc/prometheus:ro
+      - prometheus_vol:/prometheus
+    networks:
+      - application-network
+    logging:
+      <<: *default-logging-options
+
+  prometheus-oauth2-proxy:
+    image: *oauth2-proxy-image
+    restart: always
+    depends_on:
+      - prometheus
+      - keycloak
+    networks:
+      - application-network
     deploy:
       mode: global
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: "256M"
 
   node-exporter:
     image: prom/node-exporter:v1.6.1
@@ -66,7 +142,7 @@ services:
       - application-network
     restart: always
     logging:
-      <<: *env-logging
+      <<: *default-logging-options
     deploy:
       mode: global
       resources:
@@ -74,33 +150,52 @@ services:
           cpus: "0.5"
           memory: "256M"
 
-  prometheus:
-    image: prom/prometheus:v2.43.0
+  node-exporter-oauth2-proxy:
+    image: *oauth2-proxy-image
+    restart: always
+    depends_on:
+      - keycloak
+      - node-exporter
+    networks:
+      - application-network
+    deploy:
+      mode: global
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    restart: always
+    privileged: true
+    command:
+      - "--enable_metrics=cpu,memory,network"
+      - "--store_container_labels=false"
+      - "--docker_only=true"
+    volumes:
+      - "/:/rootfs:ro"
+      - "/var/run:/var/run:ro"
+      - "/sys:/sys:ro"
+      - "/var/lib/docker/:/var/lib/docker:ro"
+      - "/dev/disk/:/dev/disk:ro"
+    networks:
+      - application-network
+    logging:
+      <<: *default-logging-options
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+
+  cadvisor-oauth2-proxy:
+    image: *oauth2-proxy-image
     restart: always
     depends_on:
       - cadvisor
-    volumes:
-      - ./config/prometheus/:/etc/prometheus:ro
-      - prometheus_vol:/prometheus
+      - keycloak
     networks:
       - application-network
-    logging:
-      <<: *env-logging
-
-  grafana:
-    image: grafana/grafana:9.5.1
-    restart: always
-    depends_on:
-      - prometheus
-    env_file:
-      - ./config/grafana/config.monitoring
-    volumes:
-      - grafana_vol:/var/lib/grafana
-      - ./config/grafana/provisioning/:/etc/grafana/provisioning/
-    networks:
-      - application-network
-    logging:
-      <<: *env-logging
+    deploy:
+      mode: global
 
   dozzle:
     image: amir20/dozzle:v4.11.2
@@ -113,23 +208,35 @@ services:
     networks:
       - application-network
     logging:
-      <<: *env-logging
+      <<: *default-logging-options
+    deploy:
+      mode: global
+
+  dozzle-oauth2-proxy:
+    image: *oauth2-proxy-image
+    restart: always
+    depends_on:
+      - dozzle
+      - keycloak
+    networks:
+      - application-network
     deploy:
       mode: global
 
 
 volumes:
-  prometheus_vol:
   grafana_vol:
+  prometheus_vol:
+  keycloak_db_vol:
 
 networks:
-  application-network:
-    name: app-net
+  ingress-network:
+    name: ingress-net
     driver: bridge
     driver_opts:
       com.docker.network.driver.mtu: $DOCKER_DAEMON_MTU
-  traefik-network:
-    name: traefik-net
+  application-network:
+    name: app-net
     driver: bridge
     driver_opts:
       com.docker.network.driver.mtu: $DOCKER_DAEMON_MTU

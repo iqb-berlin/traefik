@@ -51,15 +51,24 @@ dev-volumes-prune:
 ## Remove all unused data volumes
 # Be very careful, all data could be lost!!!
 dev-volumes-clean:
-	if test "$(shell docker volume ls -f name=grafana -f name=prometheus -q)"; then\
-		docker volume rm $(shell docker volume ls -f name=grafana -f name=prometheus -q);\
+	if test "$(shell docker volume ls -f name=traefik -q)"; then\
+		docker volume rm $(shell docker volume ls -f name=traefik -q);\
 	fi
 
 ## Remove all unused (not just dangling) images!
 dev-images-clean:
-	if test "$(shell docker images -q grafana/grafana)"; then docker rmi $(shell docker images -q grafana/grafana); fi
-	if test "$(shell docker images -q prom/prometheus)"; then docker rmi $(shell docker images -q prom/prometheus); fi
-	if test "$(shell docker images -q traefik)"; then docker rmi $(shell docker images -q traefik); fi
+	if test "$(shell docker images -f reference=postgres -q)"; then docker rmi $(shell docker images -f reference=postgres -q); fi
+	if test "$(shell docker images -f reference=*/keycloak -q)"; then docker rmi $(shell docker images -f reference=*/keycloak -q); fi
+	if test "$(shell docker images -f reference=*/dozzle -q)"; then docker rmi $(shell docker images -f reference=*/dozzle -q); fi
+	if test "$(shell docker images -f reference=*/cadvisor -q)"; then docker rmi $(shell docker images -f reference=*/cadvisor -q); fi
+	if test "$(shell docker images -f reference=*/node-exporter -q)"; then docker rmi $(shell docker images -f reference=*/node-exporter -q); fi
+	if test "$(shell docker images -f reference=*/prometheus -q)"; then docker rmi $(shell docker images -f reference=*/prometheus -q); fi
+	if test "$(shell docker images -f reference=*/grafana -q)"; then docker rmi $(shell docker images -f reference=*/grafana -q); fi
+	if test "$(shell docker images -f reference=nginx -q)"; then docker rmi $(shell docker images -f reference=nginx -q); fi
+	if test "$(shell docker images -f reference=traefik -q)"; then docker rmi $(shell docker images -f reference=traefik -q); fi
+	if test "$(shell docker images -f reference=traefik-* -q)";\
+		then docker rmi $(shell docker images -f reference=traefik-* -q);\
+	fi
 
 ## Remove all unused data volumes, images, containers, networks, and cache.
 # Be careful, it cleans all!

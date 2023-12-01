@@ -15,7 +15,12 @@ load_environment_variables() {
 }
 
 get_new_release_version() {
-  LATEST_RELEASE=$(curl -s "$REPO_API"/releases/latest | grep tag_name | cut -d : -f 2,3 | tr -d \" | tr -d , | tr -d " ")
+  LATEST_RELEASE=$(curl -s "$REPO_API"/releases/latest |
+    grep tag_name |
+    cut -d : -f 2,3 |
+    tr -d \" |
+    tr -d , |
+    tr -d " ")
 
   if [ "$SOURCE_TAG" = "latest" ]; then
     SOURCE_TAG="$LATEST_RELEASE"
@@ -57,21 +62,22 @@ create_backup() {
 }
 
 run_update_script_in_selected_version() {
-  CURRENT_UPDATE_SCRIPT=./backup/release/"$SOURCE_TAG"/update_$APP_NAME.sh
-  NEW_UPDATE_SCRIPT=$REPO_URL/"$TARGET_TAG"/scripts/update.sh
+  CURRENT_UPDATE_SCRIPT=./backup/release/"$SOURCE_TAG"/scripts/update_${APP_NAME}.sh
+  TARGET_UPDATE_SCRIPT=$REPO_URL/"$TARGET_TAG"/scripts/update.sh
 
   printf "3. Update script modification check\n"
-  if [ ! -f "$CURRENT_UPDATE_SCRIPT" ] || ! curl --stderr /dev/null "$NEW_UPDATE_SCRIPT" | diff -q - "$CURRENT_UPDATE_SCRIPT" &>/dev/null; then
+  if [ ! -f "$CURRENT_UPDATE_SCRIPT" ] || ! curl --stderr /dev/null "$TARGET_UPDATE_SCRIPT" | diff -q - "$CURRENT_UPDATE_SCRIPT" &>/dev/null; then
     if [ ! -f "$CURRENT_UPDATE_SCRIPT" ]; then
       printf -- "- Current update script 'update_%s.sh' does not exist (anymore)!\n" $APP_NAME
 
-    elif ! curl --stderr /dev/null "$NEW_UPDATE_SCRIPT" | diff -q - "$CURRENT_UPDATE_SCRIPT" &>/dev/null; then
+    elif ! curl --stderr /dev/null "$TARGET_UPDATE_SCRIPT" | diff -q - "$CURRENT_UPDATE_SCRIPT" &>/dev/null; then
       printf -- '- Current update script is outdated!\n'
     fi
 
     printf '  Downloading a new update script in the selected version ...\n'
-    if wget -q -O update_$APP_NAME.sh "$NEW_UPDATE_SCRIPT"; then
-      chmod +x update_$APP_NAME.sh
+    NEW_UPDATE_SCRIPT=./scripts/update.sh
+    if wget -O $NEW_UPDATE_SCRIPT "$TARGET_UPDATE_SCRIPT"; then
+      chmod +x $NEW_UPDATE_SCRIPT
       printf '  Download successful!\n'
     else
       printf '  Download failed!\n'
@@ -82,7 +88,7 @@ run_update_script_in_selected_version() {
     printf "  Current update script will now call the downloaded update script and terminate itself.\n"
     printf "Update script modification check done.\n\n"
 
-    ./update_$APP_NAME.sh "$TARGET_TAG"
+    bash $NEW_UPDATE_SCRIPT "$TARGET_TAG"
     exit $?
 
   else
@@ -92,20 +98,14 @@ run_update_script_in_selected_version() {
 }
 
 prepare_installation_dir() {
-  if [ -d ./grafana/ ]; then
-    mv ./grafana/ ./config/grafana/
-  else
-    mkdir -p ./config/grafana/provisioning/dashboards
-    mkdir -p ./config/grafana/provisioning/datasources
-  fi
+  mkdir -p ./config/grafana/provisioning/dashboards
+  mkdir -p ./config/grafana/provisioning/datasources
+  mkdir -p ./config/keycloak
   mkdir -p ./config/maintenance-page
-  if [ -d ./prometheus/ ]; then
-    mv ./prometheus/ ./config/prometheus/
-  else
-    mkdir -p ./config/prometheus
-  fi
+  mkdir -p ./config/prometheus
   mkdir -p ./config/traefik
-  mkdir -p ./scripts
+  mkdir -p ./scripts/make
+  mkdir -p ./scripts/migration
   mkdir -p ./secrets/traefik
   rm Makefile
 }
@@ -125,7 +125,7 @@ update_files() {
 
   download_file docker-compose.traefik.yaml docker-compose.yaml
   download_file docker-compose.traefik.prod.yaml docker-compose.traefik.prod.yaml
-  download_file scripts/traefik.mk scripts/make/prod.mk
+  download_file scripts/make/traefik.mk scripts/make/prod.mk
 
   printf "File download done.\n\n"
 }
@@ -203,32 +203,89 @@ get_modified_file() {
   fi
 }
 
-check_template_files_modifications() {
+check_environment_file_modifications() {
   # check environment file
   printf "5. Environment template file modification check\n"
   get_modified_file .env.traefik.template .env.traefik.template "env-file"
   printf "Environment template file modification check done.\n\n"
+}
 
+run_optional_migration_scripts() {
+  printf "6. Optional migration scripts check\n"
+  RELEASE_TAGS=$(curl -s $REPO_API/releases |
+    grep tag_name |
+    cut -d : -f 2,3 |
+    tr -d \" |
+    tr -d , |
+    tr -d " " |
+    sed -n -e "/$TARGET_TAG/,/$SOURCE_TAG/p" |
+    head -n -1)
+
+  if [ -n "$RELEASE_TAGS" ]; then
+    for RELEASE_TAG in $RELEASE_TAGS; do
+      declare -a MIGRATION_SCRIPTS
+      MIGRATION_SCRIPT_CHECK_URL=$REPO_URL/"$TARGET_TAG"/scripts/migration/"$RELEASE_TAG".sh
+      if curl --head --silent --fail --output /dev/null "$MIGRATION_SCRIPT_CHECK_URL" 2>/dev/null; then
+        MIGRATION_SCRIPTS+=("$RELEASE_TAG".sh)
+      fi
+    done
+
+    if [ ${#MIGRATION_SCRIPTS[@]} -eq 0 ]; then
+      printf -- "- No additional migration scripts to execute.\n\n"
+
+    else
+      printf "6.1 The following migration scripts are executed for the migration from version %s to version %s:\n" "$SOURCE_TAG" "$TARGET_TAG"
+      for MIGRATION_SCRIPT in "${MIGRATION_SCRIPTS[@]}"; do
+        printf -- "- %s\n" "$MIGRATION_SCRIPT"
+      done
+      printf "\n6.2 Migration script download\n"
+      mkdir -p scripts/migration
+      for MIGRATION_SCRIPT in "${MIGRATION_SCRIPTS[@]}"; do
+        download_file scripts/migration/"$MIGRATION_SCRIPT" scripts/migration/"$MIGRATION_SCRIPT"
+        chmod +x scripts/migration/"$MIGRATION_SCRIPT"
+      done
+
+      printf "\n6.3 Migration script execution\n"
+      for ((i = ${#MIGRATION_SCRIPTS[@]} - 1; i >= 0; i--)); do
+        printf "Exceuting '%s' ...\n" "${MIGRATION_SCRIPTS[$i]}"
+        bash scripts/migration/"${MIGRATION_SCRIPTS[$i]}"
+        rm scripts/migration/"${MIGRATION_SCRIPTS[$i]}"
+      done
+
+      printf "\nMigration scripts successfully executed.\n\n"
+      printf "\n------------------------------------------------------------\n"
+      printf "Proceed with the original '%s' installation ..." $APP_NAME
+      printf "\n------------------------------------------------------------\n"
+      printf "\n"
+    fi
+  fi
+}
+
+check_config_files_modifications() {
   # check configuration files
-  printf "6. Configuration files modification check\n"
-  get_modified_file config/traefik/tls-config.yaml config/traefik/tls-config.yaml "conf-file"
-  get_modified_file config/maintenance-page/default.conf.template config/maintenance-page/default.conf.template "conf-file"
-  get_modified_file config/maintenance-page/maintenance.html config/maintenance-page/maintenance.html "conf-file"
-  get_modified_file config/prometheus/prometheus.yaml config/prometheus/prometheus.yaml "conf-file"
-  get_modified_file config/grafana/config.monitoring config/grafana/config.monitoring "conf-file"
+  printf "7. Configuration files modification check\n"
   get_modified_file config/grafana/provisioning/dashboards/dashboard.yaml config/grafana/provisioning/dashboards/dashboard.yaml "conf-file"
   get_modified_file config/grafana/provisioning/dashboards/traefik_rev4.json config/grafana/provisioning/dashboards/traefik_rev4.json "conf-file"
   get_modified_file config/grafana/provisioning/datasources/datasource.yaml config/grafana/provisioning/datasources/datasource.yaml "conf-file"
+  get_modified_file config/grafana/oauth2.config config/grafana/oauth2.config
+  get_modified_file config/keycloak/iqb-realm.config config/keycloak/iqb-realm.config
+  get_modified_file config/keycloak/iqb-realm.json config/keycloak/iqb-realm.json
+  get_modified_file config/maintenance-page/default.conf.template config/maintenance-page/default.conf.template "conf-file"
+  get_modified_file config/maintenance-page/maintenance.html config/maintenance-page/maintenance.html "conf-file"
+  get_modified_file config/prometheus/prometheus.yaml config/prometheus/prometheus.yaml "conf-file"
+  get_modified_file config/traefik/tls-config.yaml config/traefik/tls-config.yaml "conf-file"
   printf "Configuration files modification check done.\n\n"
 }
 
 customize_settings() {
   # Setup makefiles
-  sed -i "s#TRAEFIK_BASE_DIR :=.*#TRAEFIK_BASE_DIR := \\$(pwd)#" scripts/traefik.mk
+  sed -i "s#TRAEFIK_BASE_DIR :=.*#TRAEFIK_BASE_DIR := \\$(pwd)#" scripts/make/traefik.mk
+  sed -i "s#scripts/update.sh#scripts/update_${APP_NAME}.sh#" scripts/make/traefik.mk
+
   if [ -f Makefile ]; then
-    printf "include %s/scripts/traefik.mk\n" "$(pwd)" >>Makefile
+    printf "include %s/scripts/make/traefik.mk\n" "$(pwd)" >>Makefile
   else
-    printf "include %s/scripts/traefik.mk\n" "$(pwd)" >Makefile
+    printf "include %s/scripts/make/traefik.mk\n" "$(pwd)" >Makefile
   fi
 
   # write chosen version tag to env file
@@ -244,7 +301,7 @@ customize_settings() {
 }
 
 finalize_update() {
-  printf "7. Summary\n"
+  printf "8. Summary\n"
   if [ $HAS_ENV_FILE_UPDATE == "true" ] || [ $HAS_CONFIG_FILE_UPDATE == "true" ]; then
     if [ $HAS_ENV_FILE_UPDATE == "true" ] && [ $HAS_CONFIG_FILE_UPDATE == "true" ]; then
       printf -- '- Version, environment, and configuration update applied!\n\n'
@@ -336,39 +393,29 @@ generate_tls_certificate() {
   printf "A self-signed certificate file and a private key file have been generated.\n\n"
 }
 
-generate_admin_credentials() {
-  read -p "Traefik administrator name: " -er TRAEFIK_ADMIN_NAME
-  read -p "Traefik administrator password: " -er TRAEFIK_ADMIN_PASSWORD
-
-  BASIC_AUTH_CRED=$TRAEFIK_ADMIN_NAME:$(openssl passwd -apr1 "$TRAEFIK_ADMIN_PASSWORD" | sed -e s/\\$/\\$\\$/g)
-  printf "TRAEFIK_AUTH: %s\n\n" "$BASIC_AUTH_CRED"
-  sed -i "s#TRAEFIK_AUTH.*#TRAEFIK_AUTH=$BASIC_AUTH_CRED#" .env.traefik
-
-  printf "The traefik administrator credentials have been updated.\n\n"
-}
-
 main() {
   if [ -z "$SELECTED_VERSION" ]; then
-    printf "\n==================================================\n"
+    printf "\n============================================================\n"
     printf '%s update script started ...' $APP_NAME | tr '[:lower:]' '[:upper:]'
-    printf "\n==================================================\n"
+    printf "\n============================================================\n"
     printf "\n"
     printf "[1] Update %s\n" $APP_NAME
     printf "[2] Update the self-signed TLS certificate valid for 30 days\n"
-    printf "[3] Update the %s administrator credentials\n" $APP_NAME
-    printf "[4] Exit update script\n\n"
+    printf "[3] Exit update script\n\n"
 
-    while read -p 'What do you want to do? [1-4] ' -er -n 1 CHOICE; do
+    while read -p 'What do you want to do? [1-3] ' -er -n 1 CHOICE; do
       if [ "$CHOICE" = 1 ]; then
         printf "\n=== UPDATE %s ===\n\n" $APP_NAME
 
         load_environment_variables
         get_new_release_version
         create_backup
-        run_update_script_in_selected_version
         prepare_installation_dir
+        run_update_script_in_selected_version
         update_files
-        check_template_files_modifications
+        check_environment_file_modifications
+        run_optional_migration_scripts
+        check_config_files_modifications
         customize_settings
         finalize_update
 
@@ -383,13 +430,6 @@ main() {
         break
 
       elif [ "$CHOICE" = 3 ]; then
-        printf "\n=== UPDATE TRAEFIK CREDENTIALS ===\n\n"
-        generate_admin_credentials
-        application_restart
-
-        break
-
-      elif [ "$CHOICE" = 4 ]; then
         printf "'%s' update script finished.\n" $APP_NAME
         exit 0
 
@@ -400,10 +440,12 @@ main() {
   else
     TARGET_TAG="$SELECTED_VERSION"
 
-    prepare_installation_dir
     load_environment_variables
+    prepare_installation_dir
     update_files
-    check_template_files_modifications
+    check_environment_file_modifications
+    run_optional_migration_scripts
+    check_config_files_modifications
     customize_settings
     finalize_update
   fi

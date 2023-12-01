@@ -29,13 +29,46 @@ services:
       - "traefik.http.routers.maintenance-page.middlewares=maintenance-page@docker"
       - "traefik.http.services.maintenance-page.loadbalancer.server.port=80"
 
-  cadvisor:
+  keycloak:
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.cadvisor.entrypoints=web, traefik"
-      - "traefik.http.routers.cadvisor.rule=Host(`cadvisor.${SERVER_NAME}`)"
-      - "traefik.http.routers.cadvisor.service=cadvisor"
-      - "traefik.http.services.cadvisor.loadbalancer.server.port=8080"
+      - "traefik.http.routers.keycloak.entrypoints=web, traefik"
+      - "traefik.http.routers.keycloak.rule=Host(`keycloak.${SERVER_NAME}`)"
+      - "traefik.http.routers.keycloak.service=keycloak-traefik@docker"
+      - "traefik.docker.network=app-net"
+    build:
+      context: apps/keycloak
+    environment:
+      KC_HTTP_ENABLED: 'true'
+      KC_HOSTNAME_STRICT_HTTPS: 'false'
+      KEYCLOAK_LOGLEVEL: DEBUG
+
+  grafana:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.entrypoints=web, traefik"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.${SERVER_NAME}`)"
+      - "traefik.http.routers.grafana.service=grafana"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      - "traefik.docker.network=app-net"
+    environment:
+      - GF_LOG_LEVEL=debug
+      - GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION=true
+      - GF_AUTH_GENERIC_OAUTH_CLIENT_ID=${GRAFANA_CLIENT_ID}
+      - GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET=${GRAFANA_CLIENT_SECRET}
+      - GF_SERVER_ROOT_URL=http://grafana.${SERVER_NAME}
+      - GF_AUTH_SIGNOUT_REDIRECT_URL=http://keycloak.${SERVER_NAME}/realms/iqb/protocol/openid-connect/logout?post_logout_redirect_uri=http%3A%2F%2Fgrafana.${SERVER_NAME}%2Flogin&client_id=${GRAFANA_CLIENT_ID}
+      - GF_AUTH_GENERIC_OAUTH_AUTH_URL=http://keycloak.${SERVER_NAME}/realms/iqb/protocol/openid-connect/auth
+    env_file:
+      - config/grafana/oauth2.config
+
+  prometheus:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.entrypoints=web, traefik"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.${SERVER_NAME}`)"
+      - "traefik.http.routers.prometheus.service=prometheus"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
       - "traefik.docker.network=app-net"
 
   node-exporter:
@@ -47,26 +80,13 @@ services:
       - "traefik.http.services.node-exporter.loadbalancer.server.port=9100"
       - "traefik.docker.network=app-net"
 
-  prometheus:
+  cadvisor:
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.prometheus.entrypoints=web, traefik"
-      - "traefik.http.routers.prometheus.rule=Host(`prometheus.${SERVER_NAME}`)"
-      - "traefik.http.routers.prometheus.service=prometheus"
-      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
-      - "traefik.docker.network=app-net"
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yaml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.size=256MB'
-
-  grafana:
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.grafana.entrypoints=web, traefik"
-      - "traefik.http.routers.grafana.rule=Host(`grafana.${SERVER_NAME}`)"
-      - "traefik.http.routers.grafana.service=grafana"
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      - "traefik.http.routers.cadvisor.entrypoints=web, traefik"
+      - "traefik.http.routers.cadvisor.rule=Host(`cadvisor.${SERVER_NAME}`)"
+      - "traefik.http.routers.cadvisor.service=cadvisor"
+      - "traefik.http.services.cadvisor.loadbalancer.server.port=8080"
       - "traefik.docker.network=app-net"
 
   dozzle:
@@ -77,3 +97,7 @@ services:
       - "traefik.http.routers.dozzle.service=dozzle"
       - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
       - "traefik.docker.network=app-net"
+
+  keycloak-db:
+    ports:
+      - "${POSTGRES_PORT}:5432"
