@@ -1,9 +1,26 @@
+x-env-oauth2-proxy: &env-oauth2-proxy
+  OAUTH2_PROXY_PROVIDER: keycloak-oidc
+  OAUTH2_PROXY_OIDC_ISSUER_URL: https://keycloak.${SERVER_NAME}/realms/iqb
+  OAUTH2_PROXY_SKIP_OIDC_DISCOVERY: true
+  OAUTH2_PROXY_LOGIN_URL: https://keycloak.${SERVER_NAME}/realms/iqb/protocol/openid-connect/auth
+  OAUTH2_PROXY_REDEEM_URL: http://keycloak:8080/realms/iqb/protocol/openid-connect/token
+  OAUTH2_PROXY_OIDC_JWKS_URL: http://keycloak:8080/realms/iqb/protocol/openid-connect/certs
+  OAUTH2_PROXY_COOKIE_SECURE: true
+  OAUTH2_PROXY_SCOPE: openid
+  OAUTH2_PROXY_CODE_CHALLENGE_METHOD: S256
+  OAUTH2_PROXY_REVERSE_PROXY: true
+  OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: true
+  OAUTH2_PROXY_ERRORS_TO_INFO_LOG: true
+  OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
+
+
 services:
-  ingress-controller:
+  traefik:
     command:
       # - "--log.level=DEBUG"
       # - "--accesslog=true"
       - "--api.dashboard=true"
+      - "--api.insecure=true"
       - "--entryPoints.web.address=:80"
       - "--entryPoints.web.http.redirections.entryPoint.to=websecure"
       - "--entryPoints.web.http.redirections.entryPoint.scheme=https"
@@ -14,28 +31,43 @@ services:
       - "--providers.file.filename=/config/tls-config.yaml"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.traefik-ui.entrypoints=websecure"
-      - "traefik.http.routers.traefik-ui.tls=true"
-      - "traefik.http.routers.traefik-ui.rule=Host(`traefik.${SERVER_NAME}`)"
-      - "traefik.http.routers.traefik-ui.service=api@internal"
-      - "traefik.http.routers.traefik-ui.middlewares=traefik-auth, security-headers"
-      - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_AUTH}"
-      - "traefik.http.middlewares.traefik-auth.basicauth.removeheader=true"
-      - "traefik.http.middlewares.security-headers.headers.contentTypeNosniff=true"
-      - "traefik.http.middlewares.security-headers.headers.customFrameOptionsValue=SAMEORIGIN"
-      - "traefik.http.middlewares.security-headers.headers.stsSeconds=31536000"
-      - "traefik.http.middlewares.security-headers.headers.stsIncludeSubdomains=true"
-      - "traefik.http.middlewares.maintenance-page.errors.status=501,502"
-      - "traefik.http.middlewares.maintenance-page.errors.service=maintenance-page@docker"
-      - "traefik.http.middlewares.maintenance-page.errors.query=/"
     ports:
       - "${HTTPS_PORT}:443"
     volumes:
       - ./config/traefik/tls-config.yaml:/config/tls-config.yaml
       - ./secrets/traefik/certificate.pem:/secrets/certificate.pem:ro
       - ./secrets/traefik/privkey.pem:/secrets/privkey.pem:ro
+
+  traefik-oauth2-proxy:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik-oauth.entrypoints=websecure"
+      - "traefik.http.routers.traefik-oauth.tls=true"
+      - "traefik.http.routers.traefik-oauth.rule=Host(`traefik.${SERVER_NAME}`)"
+      - "traefik.http.routers.traefik-oauth.middlewares=security-headers"
+      - "traefik.http.middlewares.security-headers.headers.stsSeconds=63072000"
+      - "traefik.http.middlewares.security-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.security-headers.headers.stsPreload=true"
+      - "traefik.http.middlewares.security-headers.headers.forceSTSHeader=true"
+      - "traefik.http.middlewares.security-headers.headers.customFrameOptionsValue=SAMEORIGIN"
+      - "traefik.http.middlewares.security-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.security-headers.headers.browserXssFilter=true"
+      # - "traefik.http.middlewares.security-headers.headers.contentSecurityPolicy=frame-src 'self'; frame-ancestors 'self'; object-src 'none';"
+      - "traefik.http.middlewares.security-headers.headers.referrerPolicy=no-referrer"
+      - "traefik.http.middlewares.maintenance-page.errors.status=501,502"
+      - "traefik.http.middlewares.maintenance-page.errors.service=maintenance-page@docker"
+      - "traefik.http.middlewares.maintenance-page.errors.query=/"
+      - "traefik.docker.network=app-net"
+    environment:
+      <<: *env-oauth2-proxy
+      OAUTH2_PROXY_CLIENT_ID: ${TRAEFIK_CLIENT_ID}
+      OAUTH2_PROXY_CLIENT_SECRET: ${TRAEFIK_CLIENT_SECRET}
+      OAUTH2_PROXY_REDIRECT_URL: https://traefik.${SERVER_NAME}/oauth2/callback
+      OAUTH2_PROXY_COOKIE_SECRET: ${TRAEFIK_COOKIE_SECRET}
+      OAUTH2_PROXY_EMAIL_DOMAINS: ${TRAEFIK_EMAIL_DOMAIN}
+      OAUTH2_PROXY_UPSTREAMS: http://traefik:8080
+    expose:
+      - 4180
 
   maintenance-page:
     labels:
@@ -46,6 +78,19 @@ services:
       - "traefik.http.routers.maintenance-page.rule=HostRegexp(`{host:.+}`)"
       - "traefik.http.routers.maintenance-page.middlewares=maintenance-page@docker"
       - "traefik.http.services.maintenance-page.loadbalancer.server.port=80"
+      - "traefik.docker.network=app-net"
+
+  keycloak:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.keycloak.entrypoints=websecure"
+      - "traefik.http.routers.keycloak.tls=true"
+      - "traefik.http.routers.keycloak.rule=Host(`keycloak.${SERVER_NAME}`)"
+      - "traefik.http.routers.keycloak.middlewares=security-headers"
+      - "traefik.http.routers.keycloak.service=keycloak-traefik@docker"
+      - "traefik.docker.network=app-net"
+    environment:
+      KEYCLOAK_LOGLEVEL: INFO
 
   grafana:
     labels:
@@ -66,65 +111,80 @@ services:
       - GF_AUTH_SIGNOUT_REDIRECT_URL=https://keycloak.${SERVER_NAME}/realms/iqb/protocol/openid-connect/logout?post_logout_redirect_uri=https%3A%2F%2Fgrafana.${SERVER_NAME}%2Flogin&client_id=${GRAFANA_CLIENT_ID}
       - GF_AUTH_GENERIC_OAUTH_AUTH_URL=https://keycloak.${SERVER_NAME}/realms/iqb/protocol/openid-connect/auth
     env_file:
-      - config/grafana/config.oauth2
+      - config/grafana/oauth2.config
 
-  prometheus:
+  prometheus-oauth2-proxy:
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.prometheus.entrypoints=websecure"
-      - "traefik.http.routers.prometheus.tls=true"
-      - "traefik.http.routers.prometheus.rule=Host(`prometheus.${SERVER_NAME}`)"
-      - "traefik.http.routers.prometheus.middlewares=traefik-auth, security-headers"
-      - "traefik.http.routers.prometheus.service=prometheus"
-      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+      - "traefik.http.routers.prometheus-oauth.entrypoints=websecure"
+      - "traefik.http.routers.prometheus-oauth.tls=true"
+      - "traefik.http.routers.prometheus-oauth.rule=Host(`prometheus.${SERVER_NAME}`)"
+      - "traefik.http.routers.prometheus-oauth.middlewares=security-headers"
       - "traefik.docker.network=app-net"
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yaml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.size=256MB'
+    environment:
+      <<: *env-oauth2-proxy
+      OAUTH2_PROXY_CLIENT_ID: ${PROMETHEUS_CLIENT_ID}
+      OAUTH2_PROXY_CLIENT_SECRET: ${PROMETHEUS_CLIENT_SECRET}
+      OAUTH2_PROXY_REDIRECT_URL: https://prometheus.${SERVER_NAME}/oauth2/callback
+      OAUTH2_PROXY_COOKIE_SECRET: ${PROMETHEUS_COOKIE_SECRET}
+      OAUTH2_PROXY_EMAIL_DOMAINS: ${PROMETHEUS_EMAIL_DOMAIN}
+      OAUTH2_PROXY_UPSTREAMS: http://prometheus:9090
+    expose:
+      - 4180
 
-  node-exporter:
+  node-exporter-oauth2-proxy:
     labels:
       - "traefik.enable=false"
-      - "traefik.http.routers.node-exporter.entrypoints=websecure"
-      - "traefik.http.routers.node-exporter.tls=true"
-      - "traefik.http.routers.node-exporter.rule=Host(`node-exporter.${SERVER_NAME}`)"
-      - "traefik.http.routers.node-exporter.middlewares=traefik-auth, security-headers"
-      - "traefik.http.routers.node-exporter.service=node-exporter"
-      - "traefik.http.services.node-exporter.loadbalancer.server.port=9100"
+      - "traefik.http.routers.node-exporter-oauth.entrypoints=websecure"
+      - "traefik.http.routers.node-exporter-oauth.tls=true"
+      - "traefik.http.routers.node-exporter-oauth.rule=Host(`node-exporter.${SERVER_NAME}`)"
+      - "traefik.http.routers.node-exporter-oauth.middlewares=security-headers"
       - "traefik.docker.network=app-net"
-
-  cadvisor:
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.cadvisor.entrypoints=websecure"
-      - "traefik.http.routers.cadvisor.tls=true"
-      - "traefik.http.routers.cadvisor.rule=Host(`cadvisor.${SERVER_NAME}`)"
-      - "traefik.http.routers.cadvisor.middlewares=traefik-auth, security-headers"
-      - "traefik.http.routers.cadvisor.service=cadvisor"
-      - "traefik.http.services.cadvisor.loadbalancer.server.port=8080"
-      - "traefik.docker.network=app-net"
-
-  dozzle:
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.dozzle.entrypoints=websecure"
-      - "traefik.http.routers.dozzle.tls=true"
-      - "traefik.http.routers.dozzle.rule=Host(`dozzle.${SERVER_NAME}`)"
-      - "traefik.http.routers.dozzle.middlewares=traefik-auth, security-headers"
-      - "traefik.http.routers.dozzle.service=dozzle"
-      - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
-      - "traefik.docker.network=app-net"
-
-  identity-provider:
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.keycloak.entrypoints=websecure"
-      - "traefik.http.routers.keycloak.tls=true"
-      - "traefik.http.routers.keycloak.rule=Host(`keycloak.${SERVER_NAME}`)"
-      - "traefik.http.routers.keycloak.middlewares=security-headers"
-      - "traefik.http.routers.keycloak.service=identity-provider-traefik@docker"
-      - "traefik.docker.network=app-net"
-    command: [ 'start', '--proxy=edge' ]
     environment:
-      KEYCLOAK_LOGLEVEL: INFO
+      <<: *env-oauth2-proxy
+      OAUTH2_PROXY_CLIENT_ID: ${NODE_EXPORTER_CLIENT_ID}
+      OAUTH2_PROXY_CLIENT_SECRET: ${NODE_EXPORTER_CLIENT_SECRET}
+      OAUTH2_PROXY_REDIRECT_URL: https://node-exporter.${SERVER_NAME}/oauth2/callback
+      OAUTH2_PROXY_COOKIE_SECRET: ${NODE_EXPORTER_COOKIE_SECRET}
+      OAUTH2_PROXY_EMAIL_DOMAINS: ${NODE_EXPORTER_EMAIL_DOMAIN}
+      OAUTH2_PROXY_UPSTREAMS: http://node-exporter:9100
+    expose:
+      - 4180
+
+  cadvisor-oauth2-proxy:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cadvisor-oauth.entrypoints=websecure"
+      - "traefik.http.routers.cadvisor-oauth.tls=true"
+      - "traefik.http.routers.cadvisor-oauth.rule=Host(`cadvisor.${SERVER_NAME}`)"
+      - "traefik.http.routers.cadvisor-oauth.middlewares=security-headers"
+      - "traefik.docker.network=app-net"
+    environment:
+      <<: *env-oauth2-proxy
+      OAUTH2_PROXY_CLIENT_ID: ${CADVISOR_CLIENT_ID}
+      OAUTH2_PROXY_CLIENT_SECRET: ${CADVISOR_CLIENT_SECRET}
+      OAUTH2_PROXY_REDIRECT_URL: https://cadvisor.${SERVER_NAME}/oauth2/callback
+      OAUTH2_PROXY_COOKIE_SECRET: ${CADVISOR_COOKIE_SECRET}
+      OAUTH2_PROXY_EMAIL_DOMAINS: ${CADVISOR_EMAIL_DOMAIN}
+      OAUTH2_PROXY_UPSTREAMS: http://cadvisor:8080
+    expose:
+      - 4180
+
+  dozzle-oauth2-proxy:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dozzle-oauth.entrypoints=websecure"
+      - "traefik.http.routers.dozzle-oauth.tls=true"
+      - "traefik.http.routers.dozzle-oauth.rule=Host(`dozzle.${SERVER_NAME}`)"
+      - "traefik.http.routers.dozzle-oauth.middlewares=security-headers"
+      - "traefik.docker.network=app-net"
+    environment:
+      <<: *env-oauth2-proxy
+      OAUTH2_PROXY_CLIENT_ID: ${DOZZLE_CLIENT_ID}
+      OAUTH2_PROXY_CLIENT_SECRET: ${DOZZLE_CLIENT_SECRET}
+      OAUTH2_PROXY_REDIRECT_URL: https://dozzle.${SERVER_NAME}/oauth2/callback
+      OAUTH2_PROXY_COOKIE_SECRET: ${DOZZLE_COOKIE_SECRET}
+      OAUTH2_PROXY_EMAIL_DOMAINS: ${DOZZLE_EMAIL_DOMAIN}
+      OAUTH2_PROXY_UPSTREAMS: http://dozzle:8080
+    expose:
+      - 4180

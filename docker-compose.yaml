@@ -1,10 +1,11 @@
-x-env-logging: &env-logging
+x-logging-options: &default-logging-options
   options:
     max-size: "10m"
     max-file: "3"
 
+
 services:
-  ingress-controller:
+  traefik:
     image: traefik:2.10
     restart: always
     ports:
@@ -15,12 +16,69 @@ services:
       - ingress-network
       - application-network
 
+  traefik-oauth2-proxy:
+    image: &oauth2-proxy-image quay.io/oauth2-proxy/oauth2-proxy:v7.5.1
+    restart: always
+    depends_on:
+      - traefik
+      - keycloak
+    networks:
+      - application-network
+    deploy:
+      mode: global
+
   maintenance-page:
     image: nginx:stable
     restart: always
     volumes:
       - ./config/maintenance-page/default.conf.template:/etc/nginx/templates/default.conf.template:ro
       - ./config/maintenance-page/maintenance.html:/usr/share/nginx/html/maintenance.html:ro
+    networks:
+      - application-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:22.0
+    restart: always
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    command: [ 'start', '--proxy=edge', '--import-realm' ]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db/${POSTGRES_DB}
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_HOSTNAME: keycloak.${SERVER_NAME}
+      KC_HEALTH_ENABLED: 'true'
+      KC_METRICS_ENABLED: 'true'
+      KEYCLOAK_ADMIN: ${ADMIN_NAME}
+      KEYCLOAK_ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      KEYCLOAK_EXTRA_ARGS_PREPENDED: "--spi-login-protocol-openid-connect-legacy-logout-redirect-uri=true"
+    env_file:
+      - config/keycloak/iqb-realm.config
+    volumes:
+      - ./config/keycloak/iqb-realm.json:/opt/keycloak/data/import/iqb-realm.json
+    networks:
+      - application-network
+
+  keycloak-db:
+    image: postgres:14.8-bookworm
+    restart: always
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-q", "-d", "${POSTGRES_DB}", "-U", "${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+      start_interval: 1s
+      retries: 5
+    volumes:
+      - keycloak_db_vol:/var/lib/postgresql/data
+    environment:
+      POSTGRES_HOST: keycloak-db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     networks:
       - application-network
 
@@ -37,20 +95,35 @@ services:
     networks:
       - application-network
     logging:
-      <<: *env-logging
+      <<: *default-logging-options
 
   prometheus:
     image: prom/prometheus:v2.43.0
     restart: always
     depends_on:
       - cadvisor
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yaml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.size=256MB'
     volumes:
       - ./config/prometheus/:/etc/prometheus:ro
       - prometheus_vol:/prometheus
     networks:
       - application-network
     logging:
-      <<: *env-logging
+      <<: *default-logging-options
+
+  prometheus-oauth2-proxy:
+    image: *oauth2-proxy-image
+    restart: always
+    depends_on:
+      - prometheus
+      - keycloak
+    networks:
+      - application-network
+    deploy:
+      mode: global
 
   node-exporter:
     image: prom/node-exporter:v1.6.1
@@ -69,13 +142,24 @@ services:
       - application-network
     restart: always
     logging:
-      <<: *env-logging
+      <<: *default-logging-options
     deploy:
       mode: global
       resources:
         limits:
           cpus: "0.5"
           memory: "256M"
+
+  node-exporter-oauth2-proxy:
+    image: *oauth2-proxy-image
+    restart: always
+    depends_on:
+      - keycloak
+      - node-exporter
+    networks:
+      - application-network
+    deploy:
+      mode: global
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.47.2
@@ -94,13 +178,24 @@ services:
     networks:
       - application-network
     logging:
-      <<: *env-logging
+      <<: *default-logging-options
     deploy:
       mode: global
       resources:
         limits:
           cpus: "0.5"
           memory: "256M"
+
+  cadvisor-oauth2-proxy:
+    image: *oauth2-proxy-image
+    restart: always
+    depends_on:
+      - cadvisor
+      - keycloak
+    networks:
+      - application-network
+    deploy:
+      mode: global
 
   dozzle:
     image: amir20/dozzle:v4.11.2
@@ -113,56 +208,26 @@ services:
     networks:
       - application-network
     logging:
-      <<: *env-logging
+      <<: *default-logging-options
     deploy:
       mode: global
 
-  identity-provider:
-    image: quay.io/keycloak/keycloak:22.0
+  dozzle-oauth2-proxy:
+    image: *oauth2-proxy-image
     restart: always
     depends_on:
-      identity-provider-db:
-        condition: service_healthy
-    environment:
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://identity-provider-db/${POSTGRES_DB}
-      KC_DB_USERNAME: ${POSTGRES_USER}
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
-      KC_HOSTNAME: keycloak.${SERVER_NAME}
-      KC_HEALTH_ENABLED: 'true'
-      KC_METRICS_ENABLED: 'true'
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-      KEYCLOAK_EXTRA_ARGS_PREPENDED: "--spi-login-protocol-openid-connect-legacy-logout-redirect-uri=true"
+      - dozzle
+      - keycloak
     networks:
       - application-network
-
-  identity-provider-db:
-    image: postgres:14.8-bookworm
-    restart: always
-    healthcheck:
-      test: [ "CMD", "pg_isready", "-q", "-d", "${POSTGRES_DB}", "-U", "${POSTGRES_USER}" ]
-      interval: 10s
-      timeout: 3s
-      start_period: 60s
-      start_interval: 1s
-      retries: 5
-    volumes:
-      - keycloak_vol:/var/lib/postgresql/data
-    environment:
-      POSTGRES_HOST: identity-provider-db
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    networks:
-      - application-network
+    deploy:
+      mode: global
 
 
 volumes:
   grafana_vol:
   prometheus_vol:
-  keycloak_vol:
+  keycloak_db_vol:
 
 networks:
   ingress-network:

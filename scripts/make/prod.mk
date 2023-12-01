@@ -2,7 +2,7 @@ TRAEFIK_BASE_DIR := $(shell git rev-parse --show-toplevel)
 
 ## prevents collisions of make target names with possible file names
 .PHONY: traefik-up traefik-down traefik-start traefik-stop traefik-status traefik-logs traefik-config\
-	traefik-system-prune traefik-volumes-prune traefik-images-clean
+	traefik-system-prune traefik-volumes-prune traefik-images-clean traefik-update
 
 ## disables printing the recipe of a make target before executing it
 .SILENT: traefik-images-clean
@@ -107,3 +107,6 @@ traefik-images-clean:
 	if test "$(shell docker images -f reference=*/grafana -q)"; then docker rmi $(shell docker images -f reference=*/grafana -q); fi
 	if test "$(shell docker images -f reference=nginx -q)"; then docker rmi $(shell docker images -f reference=nginx -q); fi
 	if test "$(shell docker images -f reference=traefik -q)"; then docker rmi $(shell docker images -f reference=traefik -q); fi
+
+traefik-update:
+	bash $(TRAEFIK_BASE_DIR)/scripts/update.sh
