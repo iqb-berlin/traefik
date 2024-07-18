@@ -198,7 +198,7 @@ services:
       mode: global
 
   dozzle:
-    image: amir20/dozzle:v4.11.2
+    image: amir20/dozzle:latest
     restart: always
     environment:
       DOZZLE_LEVEL: info
