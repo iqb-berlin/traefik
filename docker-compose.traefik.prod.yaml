@@ -26,6 +26,10 @@ services:
       - "--entryPoints.web.http.redirections.entryPoint.scheme=https"
       - "--entryPoints.websecure.address=:443"
       - "--entryPoints.websecure.http.tls.options=default@file"
+      # - "--certificatesresolvers.iqbresolver.acme.tlschallenge=true"
+      ## - "--certificatesresolvers.iqbresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      # - "--certificatesresolvers.iqbresolver.acme.email=admin@organisation.org"
+      # - "--certificatesresolvers.iqbresolver.acme.storage=/letsencrypt/acme.json"
       - "--metrics.prometheus=true"
       - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
       - "--providers.file.filename=/config/tls-config.yaml"
@@ -34,15 +38,17 @@ services:
     ports:
       - "${HTTPS_PORT}:443"
     volumes:
-      - ./config/traefik/tls-config.yaml:/config/tls-config.yaml
-      - ./secrets/traefik/certificate.pem:/secrets/certificate.pem:ro
-      - ./secrets/traefik/privkey.pem:/secrets/privkey.pem:ro
+      - "./config/traefik/tls-config.yaml:/config/tls-config.yaml"
+      # - "./secrets/traefik/letsencrypt:/letsencrypt"
+      - "./secrets/traefik/certificate.pem:/secrets/certificate.pem:ro"
+      - "./secrets/traefik/privkey.pem:/secrets/privkey.pem:ro"
 
   traefik-oauth2-proxy:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik-oauth.entrypoints=websecure"
       - "traefik.http.routers.traefik-oauth.tls=true"
+      # - "traefik.http.routers.traefik-oauth.tls.certresolver=iqbresolver"
       - "traefik.http.routers.traefik-oauth.rule=Host(`traefik.${SERVER_NAME}`)"
       - "traefik.http.routers.traefik-oauth.middlewares=security-headers"
       - "traefik.http.middlewares.security-headers.headers.stsSeconds=63072000"
@@ -74,6 +80,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.maintenance-page.entrypoints=websecure"
       - "traefik.http.routers.maintenance-page.tls=true"
+      # - "traefik.http.routers.maintenance-page.tls.certresolver=iqbresolver"
       - "traefik.http.routers.maintenance-page.priority=1"
       - "traefik.http.routers.maintenance-page.rule=HostRegexp(`{host:.+}`)"
       - "traefik.http.routers.maintenance-page.middlewares=maintenance-page@docker"
@@ -85,6 +92,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.keycloak.entrypoints=websecure"
       - "traefik.http.routers.keycloak.tls=true"
+      # - "traefik.http.routers.keycloak.tls.certresolver=iqbresolver"
       - "traefik.http.routers.keycloak.rule=Host(`keycloak.${SERVER_NAME}`)"
       - "traefik.http.routers.keycloak.middlewares=security-headers"
       - "traefik.http.routers.keycloak.service=keycloak-traefik@docker"
@@ -97,6 +105,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls=true"
+      # - "traefik.http.routers.grafana.tls.certresolver=iqbresolver"
       - "traefik.http.routers.grafana.rule=Host(`grafana.${SERVER_NAME}`)"
       - "traefik.http.routers.grafana.middlewares=security-headers"
       - "traefik.http.routers.grafana.service=grafana"
@@ -118,6 +127,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.prometheus-oauth.entrypoints=websecure"
       - "traefik.http.routers.prometheus-oauth.tls=true"
+      # - "traefik.http.routers.prometheus-oauth.tls.certresolver=iqbresolver"
       - "traefik.http.routers.prometheus-oauth.rule=Host(`prometheus.${SERVER_NAME}`)"
       - "traefik.http.routers.prometheus-oauth.middlewares=security-headers"
       - "traefik.docker.network=app-net"
@@ -137,6 +147,7 @@ services:
       - "traefik.enable=false"
       - "traefik.http.routers.node-exporter-oauth.entrypoints=websecure"
       - "traefik.http.routers.node-exporter-oauth.tls=true"
+      # - "traefik.http.routers.node-exporter-oauth.tls.certresolver=iqbresolver"
       - "traefik.http.routers.node-exporter-oauth.rule=Host(`node-exporter.${SERVER_NAME}`)"
       - "traefik.http.routers.node-exporter-oauth.middlewares=security-headers"
       - "traefik.docker.network=app-net"
@@ -156,6 +167,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.cadvisor-oauth.entrypoints=websecure"
       - "traefik.http.routers.cadvisor-oauth.tls=true"
+      # - "traefik.http.routers.cadvisor-oauth.tls.certresolver=iqbresolver"
       - "traefik.http.routers.cadvisor-oauth.rule=Host(`cadvisor.${SERVER_NAME}`)"
       - "traefik.http.routers.cadvisor-oauth.middlewares=security-headers"
       - "traefik.docker.network=app-net"
@@ -175,6 +187,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.dozzle-oauth.entrypoints=websecure"
       - "traefik.http.routers.dozzle-oauth.tls=true"
+      # - "traefik.http.routers.dozzle-oauth.tls.certresolver=iqbresolver"
       - "traefik.http.routers.dozzle-oauth.rule=Host(`dozzle.${SERVER_NAME}`)"
       - "traefik.http.routers.dozzle-oauth.middlewares=security-headers"
       - "traefik.docker.network=app-net"
