@@ -11,7 +11,7 @@ services:
     ports:
       - "${HTTP_PORT}:80"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
     networks:
       - ingress-network
       - application-network
@@ -31,8 +31,8 @@ services:
     image: nginx:stable
     restart: always
     volumes:
-      - ./config/maintenance-page/default.conf.template:/etc/nginx/templates/default.conf.template:ro
-      - ./config/maintenance-page/maintenance.html:/usr/share/nginx/html/maintenance.html:ro
+      - "./config/maintenance-page/default.conf.template:/etc/nginx/templates/default.conf.template:ro"
+      - "./config/maintenance-page/maintenance.html:/usr/share/nginx/html/maintenance.html:ro"
     networks:
       - application-network
 
@@ -57,7 +57,7 @@ services:
     env_file:
       - config/keycloak/iqb-realm.config
     volumes:
-      - ./config/keycloak/iqb-realm.json:/opt/keycloak/data/import/iqb-realm.json
+      - "./config/keycloak/iqb-realm.json:/opt/keycloak/data/import/iqb-realm.json"
     networks:
       - application-network
 
@@ -72,7 +72,7 @@ services:
       start_interval: 1s
       retries: 5
     volumes:
-      - keycloak_db_vol:/var/lib/postgresql/data
+      - "keycloak_db_vol:/var/lib/postgresql/data"
     environment:
       POSTGRES_HOST: keycloak-db
       POSTGRES_PORT: 5432
@@ -90,8 +90,8 @@ services:
     environment:
       - GF_INSTALL_PLUGINS=grafana-piechart-panel
     volumes:
-      - grafana_vol:/var/lib/grafana
-      - ./config/grafana/provisioning/:/etc/grafana/provisioning/
+      - "grafana_vol:/var/lib/grafana"
+      - "./config/grafana/provisioning/:/etc/grafana/provisioning/"
     networks:
       - application-network
     logging:
@@ -107,8 +107,8 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.size=256MB'
     volumes:
-      - ./config/prometheus/:/etc/prometheus:ro
-      - prometheus_vol:/prometheus
+      - "./config/prometheus/:/etc/prometheus:ro"
+      - "prometheus_vol:/prometheus"
     networks:
       - application-network
     logging:
@@ -128,10 +128,10 @@ services:
   node-exporter:
     image: prom/node-exporter:v1.6.1
     volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-      - /:/host:ro,rslave
+      - "/proc:/host/proc:ro"
+      - "/sys:/host/sys:ro"
+      - "/:/rootfs:ro"
+      - "/:/host:ro,rslave"
     command:
       - "--path.rootfs=/host"
       - "--path.procfs=/host/proc"
@@ -204,7 +204,7 @@ services:
       DOZZLE_LEVEL: info
       DOZZLE_NO_ANALYTICS: true
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - "/var/run/docker.sock:/var/run/docker.sock"
     networks:
       - application-network
     logging:
