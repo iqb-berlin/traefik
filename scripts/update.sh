@@ -31,9 +31,9 @@ get_new_release_version() {
 
   if [ "$SOURCE_TAG" = "$LATEST_RELEASE" ]; then
     printf "Latest release is already installed!\n"
-    read -p "Continue anyway? [Y/n] " -er -n 1 CONTINUE
+    read -p "Continue anyway? [y/N] " -er -n 1 CONTINUE
 
-    if [[ $CONTINUE =~ ^[nN]$ ]]; then
+    if [[ ! $CONTINUE =~ ^[yY]$ ]]; then
       printf "'%s' update script finished.\n" $APP_NAME
       exit 0
     fi
@@ -62,22 +62,25 @@ create_backup() {
 }
 
 run_update_script_in_selected_version() {
-  CURRENT_UPDATE_SCRIPT=./backup/release/"$SOURCE_TAG"/scripts/update_${APP_NAME}.sh
-  TARGET_UPDATE_SCRIPT=$REPO_URL/"$TARGET_TAG"/scripts/update.sh
+  declare current_update_script
+  current_update_script="${BACKUP_DIR}/scripts/update_${APP_NAME}.sh"
+
+  declare selected_update_script
+  selected_update_script="${REPO_URL}/${TARGET_TAG}/scripts/update.sh"
 
   printf "3. Update script modification check\n"
-  if [ ! -f "$CURRENT_UPDATE_SCRIPT" ] || ! curl --stderr /dev/null "$TARGET_UPDATE_SCRIPT" | diff -q - "$CURRENT_UPDATE_SCRIPT" &>/dev/null; then
-    if [ ! -f "$CURRENT_UPDATE_SCRIPT" ]; then
+  if [ ! -f "$current_update_script" ] ||
+    ! curl --stderr /dev/null "$selected_update_script" | diff -q - "$current_update_script" &>/dev/null; then
+    if [ ! -f "$current_update_script" ]; then
       printf -- "- Current update script 'update_%s.sh' does not exist (anymore)!\n" $APP_NAME
 
-    elif ! curl --stderr /dev/null "$TARGET_UPDATE_SCRIPT" | diff -q - "$CURRENT_UPDATE_SCRIPT" &>/dev/null; then
+    elif ! curl --stderr /dev/null "$selected_update_script" | diff -q - "$current_update_script" &>/dev/null; then
       printf -- '- Current update script is outdated!\n'
     fi
 
     printf '  Downloading a new update script in the selected version ...\n'
-    NEW_UPDATE_SCRIPT=./scripts/update.sh
-    if wget -O $NEW_UPDATE_SCRIPT "$TARGET_UPDATE_SCRIPT"; then
-      chmod +x $NEW_UPDATE_SCRIPT
+    if curl --silent --fail --output "${APP_DIR}/scripts/update_${APP_NAME}.sh" "$selected_update_script"; then
+      chmod +x "${APP_DIR}/scripts/update_${APP_NAME}.sh"
       printf '  Download successful!\n'
     else
       printf '  Download failed!\n'
@@ -86,9 +89,23 @@ run_update_script_in_selected_version() {
     fi
 
     printf "  Current update script will now call the downloaded update script and terminate itself.\n"
+    declare continue
+    read -p "  Do you want to continue? [Y/n] " -er -n 1 continue
+    if [[ $continue =~ ^[nN]$ ]]; then
+      printf "  You can check the the new update script (e.g.: 'less scripts/update_%s.sh') or " $APP_NAME
+      printf "compare it with the old one (e.g.: 'diff %s %s').\n\n" \
+        "scripts/update_${APP_NAME}.sh" "backup/release/$SOURCE_TAG/update_${APP_NAME}.sh"
+
+      printf "  If you want to resume this update process, please type: 'bash scripts/update_%s.sh %s'\n\n" \
+        $APP_NAME "$TARGET_TAG"
+
+      printf "'%s' update script finished.\n" $APP_NAME
+      exit 0
+    fi
+
     printf "Update script modification check done.\n\n"
 
-    bash $NEW_UPDATE_SCRIPT "$TARGET_TAG"
+    bash "${APP_DIR}/scripts/update_${APP_NAME}.sh" "$TARGET_TAG"
     exit $?
 
   else
@@ -106,12 +123,14 @@ prepare_installation_dir() {
   mkdir -p ./config/traefik
   mkdir -p ./scripts/make
   mkdir -p ./scripts/migration
-  mkdir -p ./secrets/traefik
+  mkdir -p ./secrets/traefik/certs/acme
+  pwd
+  ls -la
   rm Makefile
 }
 
 download_file() {
-  if wget -q -O "$1" $REPO_URL/"$TARGET_TAG"/"$2"; then
+  if curl --silent --fail --output "$1" $REPO_URL/"$TARGET_TAG"/"$2"; then
     printf -- "- File '%s' successfully downloaded.\n" "$1"
   else
     printf -- "- File '%s' download failed.\n\n" "$1"
@@ -165,7 +184,7 @@ get_modified_file() {
 
       if [ "$FILE_TYPE" == "conf-file" ]; then
         mv "$SOURCE_FILE" "$SOURCE_FILE".old 2>/dev/null
-        printf -- "- The current configuration file '%s' was changed.\n" "$SOURCE_FILE"
+        printf -- "- The current configuration file '%s' has been changed.\n" "$SOURCE_FILE"
         printf "  A version %s configuration file will be downloaded now ...\n" "$TARGET_TAG"
         printf "  Please compare the new file with your current (now old) file and modify the new one, if necessary!\n"
         printf "  For comparison use e.g. 'diff %s %s.old'.\n" "$SOURCE_FILE" "$SOURCE_FILE"
@@ -173,7 +192,7 @@ get_modified_file() {
 
     fi
 
-    if wget -q -O "$SOURCE_FILE" "$TARGET_FILE"; then
+    if curl --silent --fail --output "$SOURCE_FILE" "$TARGET_FILE"; then
       printf "  File '%s' was downloaded successfully.\n" "$SOURCE_FILE"
 
       if [ "$FILE_TYPE" == "env-file" ]; then
@@ -247,7 +266,7 @@ run_optional_migration_scripts() {
 
       printf "\n6.3 Migration script execution\n"
       for ((i = ${#MIGRATION_SCRIPTS[@]} - 1; i >= 0; i--)); do
-        printf "Exceuting '%s' ...\n" "${MIGRATION_SCRIPTS[$i]}"
+        printf "Executing '%s' ...\n" "${MIGRATION_SCRIPTS[$i]}"
         bash scripts/migration/"${MIGRATION_SCRIPTS[$i]}"
         rm scripts/migration/"${MIGRATION_SCRIPTS[$i]}"
       done
@@ -258,6 +277,9 @@ run_optional_migration_scripts() {
       printf "\n------------------------------------------------------------\n"
       printf "\n"
     fi
+  else
+    printf -- "- No additional migration scripts to execute, because there are no releases between your current "
+    printf "  version '%s' and your selected target version '%s'.\n\n" "$SOURCE_TAG" "$TARGET_TAG"
   fi
 }
 
@@ -273,7 +295,9 @@ check_config_files_modifications() {
   get_modified_file config/maintenance-page/default.conf.template config/maintenance-page/default.conf.template "conf-file"
   get_modified_file config/maintenance-page/maintenance.html config/maintenance-page/maintenance.html "conf-file"
   get_modified_file config/prometheus/prometheus.yaml config/prometheus/prometheus.yaml "conf-file"
-  get_modified_file config/traefik/tls-config.yaml config/traefik/tls-config.yaml "conf-file"
+  get_modified_file config/traefik/tls-acme.yaml config/traefik/tls-acme.yaml "conf-file"
+  get_modified_file config/traefik/tls-certificates.yaml config/traefik/tls-certificates.yaml "conf-file"
+  get_modified_file config/traefik/tls-options.yaml config/traefik/tls-options.yaml "conf-file"
   printf "Configuration files modification check done.\n\n"
 }
 
@@ -292,11 +316,11 @@ customize_settings() {
   sed -i "s#IQB_TRAEFIK_VERSION_TAG.*#IQB_TRAEFIK_VERSION_TAG=$TARGET_TAG#" .env.traefik
 
   # Generate TLS dummies
-  if [ ! -f ./secrets/traefik/certificate.pem ]; then
-    printf "Generated certificate placeholder file.\nReplace this text with real content if necessary.\n" >./secrets/traefik/certificate.pem
+  if [ ! -f ./secrets/traefik/certs/certificate.pem ]; then
+    printf "Generated certificate placeholder file.\nReplace this text with real content if necessary.\n" >./secrets/traefik/certs/certificate.pem
   fi
-  if [ ! -f ./secrets/traefik/privkey.pem ]; then
-    printf "Generated key placeholder file.\nReplace this text with real content if necessary.\n" >./secrets/traefik/privkey.pem
+  if [ ! -f ./secrets/traefik/certs/private_key.pem ]; then
+    printf "Generated key placeholder file.\nReplace this text with real content if necessary.\n" >./secrets/traefik/certs/private_key.pem
   fi
 }
 
@@ -375,8 +399,8 @@ application_restart() {
 }
 
 generate_tls_certificate() {
-  if command openssl x509 -in secrets/traefik/certificate.pem -text -noout >/dev/null 2>&1 &&
-    command openssl rsa -in secrets/traefik/privkey.pem -check >/dev/null 2>&1; then
+  if command openssl x509 -in secrets/traefik/certs/certificate.pem -text -noout >/dev/null 2>&1 &&
+    command openssl rsa -in secrets/traefik/certs/private_key.pem -check >/dev/null 2>&1; then
     printf "A TLS certificate and private key are already present!\n"
     read -p "Do you really want to replace them? [y/N] " -er -n 1 REPLACE
 
@@ -388,8 +412,8 @@ generate_tls_certificate() {
 
   printf "An unsecure self-signed TLS certificate valid for 30 days will be generated ...\n"
   openssl req \
-    -newkey rsa:2048 -nodes -subj "/CN=$SERVER_NAME" -keyout secrets/traefik/privkey.pem \
-    -x509 -days 30 -out secrets/traefik/certificate.pem
+    -newkey rsa:2048 -nodes -subj "/CN=$SERVER_NAME" -keyout secrets/traefik/certs/private_key.pem \
+    -x509 -days 30 -out secrets/traefik/certs/certificate.pem
   printf "A self-signed certificate file and a private key file have been generated.\n\n"
 }
 
