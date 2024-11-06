@@ -10,18 +10,18 @@ TRAEFIK_BASE_DIR := $(shell git rev-parse --show-toplevel)
 ## Pull newest images, create and start docker containers
 traefik-up:
 	@if\
-		! test -f $(TRAEFIK_BASE_DIR)/secrets/traefik/certificate.pem ||\
-		! test -f $(TRAEFIK_BASE_DIR)/secrets/traefik/privkey.pem ||\
-		! command openssl x509 -in $(TRAEFIK_BASE_DIR)/secrets/traefik/certificate.pem -text -noout >/dev/null 2>&1 ||\
-		! command openssl rsa -in $(TRAEFIK_BASE_DIR)/secrets/traefik/privkey.pem -check >/dev/null 2>&1;\
+		! test -f $(TRAEFIK_BASE_DIR)/secrets/traefik/certs/certificate.pem ||\
+		! test -f $(TRAEFIK_BASE_DIR)/secrets/traefik/certs/private_key.pem ||\
+		! command openssl x509 -in $(TRAEFIK_BASE_DIR)/secrets/traefik/certs/certificate.pem -text -noout >/dev/null 2>&1 ||\
+		! command openssl rsa -in $(TRAEFIK_BASE_DIR)/secrets/traefik/certs/private_key.pem -check >/dev/null 2>&1;\
 				then\
 					echo "===============================================";\
 					echo "No SSL certificate and/or key available!";\
 					echo "Generating a 1-day self-signed certificate ...";\
 					openssl req\
 							 -newkey rsa:2048 -nodes -subj "/CN=$(SERVER_NAME)"\
-							 -keyout $(TRAEFIK_BASE_DIR)/secrets/traefik/privkey.pem\
-							 -x509 -days 1 -out $(TRAEFIK_BASE_DIR)/secrets/traefik/certificate.pem;\
+							 -keyout $(TRAEFIK_BASE_DIR)/secrets/traefik/certs/private_key.pem\
+							 -x509 -days 1 -out $(TRAEFIK_BASE_DIR)/secrets/traefik/certs/certificate.pem;\
 					echo "Self-signed 1-day certificate created.";\
 					echo "===============================================";\
 	fi
