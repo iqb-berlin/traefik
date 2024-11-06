@@ -36,13 +36,13 @@ services:
       - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.file.filename=/tls-options.yml"
-      - "--providers.file.filename=/tls-${TLS_CERTIFICATE_RESOLVER:-certificates}.yml"
+      - "--providers.file.filename=/tls-options.yaml"
+      - "--providers.file.filename=/tls-${TLS_CERTIFICATE_RESOLVER:-certificates}.yaml"
     ports:
       - "${HTTPS_PORT}:443"
     volumes:
-      - "./config/traefik/tls-options.yml:/tls-options.yml"
-      - "./config/traefik/tls-${TLS_CERTIFICATE_RESOLVER:-certificates}.yml:/tls-${TLS_CERTIFICATE_RESOLVER:-certificates}.yml"
+      - "./config/traefik/tls-options.yaml:/tls-options.yaml"
+      - "./config/traefik/tls-${TLS_CERTIFICATE_RESOLVER:-certificates}.yaml:/tls-${TLS_CERTIFICATE_RESOLVER:-certificates}.yaml"
       - "./secrets/traefik/certs/${TLS_CERTIFICATE_RESOLVER}:/certs"
 
   traefik-oauth2-proxy:
