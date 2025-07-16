@@ -1,14 +1,5 @@
 services:
   traefik:
-    command:
-      - "--log.level=DEBUG"
-      - "--api.dashboard=true"
-      - "--entryPoints.web.address=:80"
-      - "--entryPoints.traefik.address=:8080"
-      - "--metrics.prometheus=true"
-      - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik-ui.entrypoints=web, traefik"
@@ -17,6 +8,18 @@ services:
       - "traefik.http.middlewares.maintenance-page.errors.status=501,502"
       - "traefik.http.middlewares.maintenance-page.errors.service=maintenance-page@docker"
       - "traefik.http.middlewares.maintenance-page.errors.query=/"
+    command:
+      - "--global.checknewversion=false"
+      - "--global.sendAnonymousUsage: false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.traefik.address=:8080"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--api.dashboard=true"
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
+      - "--log.level=DEBUG"
+      - "--accesslog=false"
     ports:
       - "${TRAEFIK_PORT}:8080"  # dashboard
 
