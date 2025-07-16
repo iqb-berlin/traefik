@@ -1,8 +1,15 @@
 TRAEFIK_BASE_DIR := $(shell git rev-parse --show-toplevel)
 
+include $(TRAEFIK_BASE_DIR)/.env.traefik
+
+# exports all variables (especially those of the included .env.traefik file!)
+.EXPORT_ALL_VARIABLES:
+
 ## prevents collisions of make target names with possible file names
 .PHONY: traefik-up traefik-down traefik-start traefik-stop traefik-status traefik-logs traefik-config\
-	traefik-system-prune traefik-volumes-prune traefik-images-clean traefik-update
+	traefik-system-prune traefik-volumes-prune traefik-images-clean traefik-connect-keycloak-db\
+	traefik-dump-keycloak-db-server traefik-restore-keycloak-db-server traefik-dump-keycloak-db\
+	traefik-restore-keycloak-db traefik-update
 
 ## disables printing the recipe of a make target before executing it
 .SILENT: traefik-images-clean
@@ -107,6 +114,121 @@ traefik-images-clean:
 	if test "$(shell docker images -f reference=*/grafana -q)"; then docker rmi $(shell docker images -f reference=*/grafana -q); fi
 	if test "$(shell docker images -f reference=nginx -q)"; then docker rmi $(shell docker images -f reference=nginx -q); fi
 	if test "$(shell docker images -f reference=traefik -q)"; then docker rmi $(shell docker images -f reference=traefik -q); fi
+
+# Open keycloak-db console
+traefik-connect-keycloak-db: .EXPORT_ALL_VARIABLES
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		exec -it keycloak-db\
+			psql --username=$(POSTGRES_USER) --dbname=$(POSTGRES_DB)
+
+# Extract a database cluster into a script file
+## (https://www.postgresql.org/docs/current/app-pg-dumpall.html)
+traefik-dump-keycloak-db-server: traefik-down .EXPORT_ALL_VARIABLES
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		up -d keycloak-db
+	sleep 5 ## wait until keycloak-db startup is completed
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		exec -it keycloak-db\
+			pg_dumpall --verbose --username=$(POSTGRES_USER) > $(TRAEFIK_BASE_DIR)/backup/temp/all.sql
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		down
+
+# PostgreSQL interactive terminal reads commands from the dump file all.sql
+## (https://www.postgresql.org/docs/14/app-psql.html)
+## Before restoring, delete the keycloak-db volume and any existing block storage.
+traefik-restore-keycloak-db-server: traefik-down .EXPORT_ALL_VARIABLES
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		up -d keycloak-db
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		cp $(TRAEFIK_BASE_DIR)/backup/temp/all.sql keycloak-db:/tmp/
+	sleep 10	## wait until file upload is completed
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		exec -it keycloak-db\
+			psql --username=$(POSTGRES_USER) --file=/tmp/all.sql postgres
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		down
+
+# Extract a database into a script file or other archive file
+## (https://www.postgresql.org/docs/current/app-pgdump.html)
+traefik-dump-keycloak-db: traefik-down .EXPORT_ALL_VARIABLES
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		up -d keycloak-db
+	sleep 5 ## wait until keycloak-db startup is completed
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		exec -it keycloak-db\
+			pg_dump\
+					--verbose\
+					--username=$(POSTGRES_USER)\
+					--format=c\
+				$(POSTGRES_DB) > $(TRAEFIK_BASE_DIR)/backup/temp/$(POSTGRES_DB)_dump
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		down
+
+# Restore a database from an archive file created by pg_dump
+## (https://www.postgresql.org/docs/current/app-pgrestore.html)
+traefik-restore-keycloak-db: traefik-down .EXPORT_ALL_VARIABLES
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		up -d keycloak-db
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		cp $(TRAEFIK_BASE_DIR)/backup/temp/$(POSTGRES_DB)_dump keycloak-db:/tmp/
+	sleep 10	## wait until file upload is completed
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		exec -it keycloak-db\
+			pg_restore\
+					--verbose\
+					--single-transaction\
+					--username=$(POSTGRES_USER)\
+					--dbname=$(POSTGRES_DB)\
+					--clean\
+					--if-exists\
+				/tmp/$(POSTGRES_DB)_dump
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		down
 
 traefik-update:
 	bash $(TRAEFIK_BASE_DIR)/scripts/update.sh
