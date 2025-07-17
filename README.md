@@ -1,2 +1,2 @@
 # traefik
-Edge router and monitoring IQB application infrastructure
+IQB application infrastructure with Edge router, Identity Provider, and Monitoring
