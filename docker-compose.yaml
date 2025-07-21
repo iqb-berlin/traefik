@@ -55,9 +55,9 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       KEYCLOAK_EXTRA_ARGS_PREPENDED: "--spi-login-protocol-openid-connect-legacy-logout-redirect-uri=true"
     env_file:
-      - config/keycloak/iqb-realm.config
+      - config/keycloak/monitoring-realm.config
     volumes:
-      - "./config/keycloak/iqb-realm.json:/opt/keycloak/data/import/iqb-realm.json"
+      - "./config/keycloak/monitoring-realm.json:/opt/keycloak/data/import/monitoring-realm.json"
     networks:
       - application-network
 
