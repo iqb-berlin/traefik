@@ -10,13 +10,13 @@
       "type" : "password",
       "value": "${ADMIN_PASSWORD}"
     } ],
-    "realmRoles" : [ "default-roles-iqb" ],
+    "realmRoles" : [ "default-roles-monitoring" ],
     "clientRoles" : {
       "${GRAFANA_CLIENT_ID}" : [ "admin" ]
     }
   } ],
   "id": "e47b4346-3c91-4d1e-a62e-4103448421fc",
-  "realm": "iqb",
+  "realm": "monitoring",
   "notBefore": 0,
   "defaultSignatureAlgorithm": "RS256",
   "revokeRefreshToken": false,
@@ -63,7 +63,7 @@
     "realm": [
       {
         "id": "7b9dafb6-b394-44bb-bcda-cdcc515ab12d",
-        "name": "default-roles-iqb",
+        "name": "default-roles-monitoring",
         "description": "${role_default-roles}",
         "composite": true,
         "composites": {
@@ -463,7 +463,7 @@
   "groups": [],
   "defaultRole": {
     "id": "7b9dafb6-b394-44bb-bcda-cdcc515ab12d",
-    "name": "default-roles-iqb",
+    "name": "default-roles-monitoring",
     "description": "${role_default-roles}",
     "composite": true,
     "clientRole": false,
@@ -533,13 +533,13 @@
       "clientId": "account",
       "name": "${client_account}",
       "rootUrl": "${authBaseUrl}",
-      "baseUrl": "/realms/iqb/account/",
+      "baseUrl": "/realms/monitoring/account/",
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "/realms/iqb/account/*"
+        "/realms/monitoring/account/*"
       ],
       "webOrigins": [],
       "notBefore": 0,
@@ -577,13 +577,13 @@
       "clientId": "account-console",
       "name": "${client_account-console}",
       "rootUrl": "${authBaseUrl}",
-      "baseUrl": "/realms/iqb/account/",
+      "baseUrl": "/realms/monitoring/account/",
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "/realms/iqb/account/*"
+        "/realms/monitoring/account/*"
       ],
       "webOrigins": [],
       "notBefore": 0,
@@ -1110,13 +1110,13 @@
       "clientId": "security-admin-console",
       "name": "${client_security-admin-console}",
       "rootUrl": "${authAdminUrl}",
-      "baseUrl": "/admin/iqb/console/",
+      "baseUrl": "/admin/monitoring/console/",
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "/admin/iqb/console/*"
+        "/admin/monitoring/console/*"
       ],
       "webOrigins": [
         "+"
