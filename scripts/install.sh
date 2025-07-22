@@ -131,7 +131,7 @@ download_files() {
   printf "File downloads done.\n\n"
 }
 
-download_keycloak_theme() {
+download_keycloak_themes() {
   printf "5. Keycloak themes\n"
   printf -- "- Downloading IQB theme ...\n"
 
@@ -371,7 +371,7 @@ main() {
 
   download_files
 
-  download_keycloak_theme
+  download_keycloak_themes
 
   customize_settings
 
