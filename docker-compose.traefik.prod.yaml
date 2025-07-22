@@ -1,10 +1,10 @@
 x-env-oauth2-proxy: &env-oauth2-proxy
   OAUTH2_PROXY_PROVIDER: keycloak-oidc
-  OAUTH2_PROXY_OIDC_ISSUER_URL: https://keycloak.${SERVER_NAME}/realms/iqb
+  OAUTH2_PROXY_OIDC_ISSUER_URL: https://keycloak.${SERVER_NAME}/realms/monitoring
   OAUTH2_PROXY_SKIP_OIDC_DISCOVERY: true
-  OAUTH2_PROXY_LOGIN_URL: https://keycloak.${SERVER_NAME}/realms/iqb/protocol/openid-connect/auth
-  OAUTH2_PROXY_REDEEM_URL: http://keycloak:8080/realms/iqb/protocol/openid-connect/token
-  OAUTH2_PROXY_OIDC_JWKS_URL: http://keycloak:8080/realms/iqb/protocol/openid-connect/certs
+  OAUTH2_PROXY_LOGIN_URL: https://keycloak.${SERVER_NAME}/realms/monitoring/protocol/openid-connect/auth
+  OAUTH2_PROXY_REDEEM_URL: http://keycloak:8080/realms/monitoring/protocol/openid-connect/token
+  OAUTH2_PROXY_OIDC_JWKS_URL: http://keycloak:8080/realms/monitoring/protocol/openid-connect/certs
   OAUTH2_PROXY_COOKIE_SECURE: true
   OAUTH2_PROXY_SCOPE: openid
   OAUTH2_PROXY_CODE_CHALLENGE_METHOD: S256
