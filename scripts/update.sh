@@ -53,7 +53,9 @@ get_new_release_version() {
     printf "\n"
   fi
 
-  while read -p '1. Name the desired version: ' -er -i "${latest_release}" TARGET_TAG; do
+  printf "1. Release selection\n"
+
+  while read -p 'Please ame the desired version: ' -er -i "${latest_release}" TARGET_TAG; do
     if ! curl --head --silent --fail --output /dev/null $REPO_URL/"$TARGET_TAG"/README.md 2>/dev/null; then
       printf "This version tag does not exist.\n"
 
@@ -152,13 +154,23 @@ download_file() {
 }
 
 update_files() {
-  printf "4. File download\n"
+  printf "4. File downloads\n"
 
   download_file "${APP_DIR}/docker-compose.traefik.yaml" docker-compose.yaml
   download_file "${APP_DIR}/docker-compose.traefik.prod.yaml" docker-compose.traefik.prod.yaml
   download_file "${APP_DIR}/scripts/make/traefik.mk" scripts/make/prod.mk
 
-  printf "File download done.\n\n"
+  printf "File downloads done.\n\n"
+}
+
+update_keycloak_theme() {
+  printf "5. Keycloak themes\n"
+  printf -- "- Downloading monitoring realm theme ...\n"
+
+  curl --location --silent "github.com/iqb-berlin/${APP_NAME}/archive/${TARGET_TAG}.tar.gz" | \
+    tar --extract --gunzip --directory config/keycloak --strip=3 "${APP_NAME}-${TARGET_TAG}/config/keycloak/themes/iqb"
+
+  printf "Keycloak themes download done.\n\n"
 }
 
 get_modified_file() {
@@ -213,7 +225,7 @@ get_modified_file() {
     fi
 
     if curl --silent --fail --output "$source_file" "$target_file"; then
-      printf "  File '%s' was downloaded successfully.\n" "$source_file"
+      printf -- "  - File '%s' was downloaded successfully.\n" "$source_file"
 
       if [ "$file_type" == "env-file" ]; then
         HAS_ENV_FILE_UPDATE=true
@@ -244,7 +256,7 @@ get_modified_file() {
 
 check_environment_file_modifications() {
   # check environment file
-  printf "5. Environment template file modification check\n"
+  printf "6. Environment template file modification check\n"
   get_modified_file .env.traefik.template .env.traefik.template "env-file"
   printf "Environment template file modification check done.\n\n"
 }
@@ -290,7 +302,7 @@ check_tag_format() {
 }
 
 run_optional_migration_scripts() {
-  printf "6. Optional migration scripts check\n"
+  printf "7. Optional migration scripts check\n"
   declare source_tag_is_release
   declare source_tag_is_prerelease
   declare target_tag_is_release
@@ -369,14 +381,14 @@ run_optional_migration_scripts() {
 
     else
       printf -- "- Additional Migration script(s) available.\n\n"
-      printf "6.1 Migration script download\n"
+      printf "7.1 Migration script download\n"
       mkdir -p "${APP_DIR}"/scripts/migration
       for migration_script in "${migration_scripts[@]}"; do
         download_file "${APP_DIR}"/scripts/migration/"$migration_script" scripts/migration/"$migration_script"
         chmod +x "${APP_DIR}"/scripts/migration/"$migration_script"
       done
 
-      printf "\n6.2 Migration script execution\n"
+      printf "\n7.2 Migration script execution\n"
       printf "The following migration scripts will be executed for the migration from version %s to version %s:\n" \
         "$SOURCE_TAG" "$TARGET_TAG"
       declare migration_script
@@ -424,7 +436,7 @@ run_optional_migration_scripts() {
 
 check_config_files_modifications() {
   # check configuration files
-  printf "7. Configuration files modification check\n"
+  printf "8. Configuration files modification check\n"
   get_modified_file config/grafana/provisioning/dashboards/dashboard.yaml config/grafana/provisioning/dashboards/dashboard.yaml "conf-file"
   get_modified_file config/grafana/provisioning/dashboards/traefik_rev4.json config/grafana/provisioning/dashboards/traefik_rev4.json "conf-file"
   get_modified_file config/grafana/provisioning/datasources/datasource.yaml config/grafana/provisioning/datasources/datasource.yaml "conf-file"
@@ -458,7 +470,7 @@ customize_settings() {
 }
 
 finalize_update() {
-  printf "8. Summary\n"
+  printf "9. Summary\n"
   if [ $HAS_ENV_FILE_UPDATE == "true" ] || [ $HAS_CONFIG_FILE_UPDATE == "true" ] || [ $HAS_MIGRATION_FILES == "true" ]; then
     if [ $HAS_ENV_FILE_UPDATE == "true" ] && [ $HAS_CONFIG_FILE_UPDATE == "true" ]; then
       printf -- '- Version, environment, and configuration update applied!\n\n'
@@ -581,6 +593,7 @@ main() {
         run_update_script_in_selected_version
         prepare_installation_dir
         update_files
+        update_keycloak_theme
         check_environment_file_modifications
         run_optional_migration_scripts
         check_config_files_modifications
@@ -611,6 +624,7 @@ main() {
     load_environment_variables
     prepare_installation_dir
     update_files
+    update_keycloak_theme
     check_environment_file_modifications
     run_optional_migration_scripts
     check_config_files_modifications
