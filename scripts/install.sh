@@ -124,7 +124,16 @@ download_files() {
   download_file scripts/update_${APP_NAME}.sh scripts/update.sh
   chmod +x scripts/update_${APP_NAME}.sh
 
-  printf "Downloads done!\n\n"
+  printf "File downloads done!\n\n"
+}
+
+download_keycloak_theme() {
+  printf "5. Downloading Keycloak IQB theme:\n"
+
+  curl --location --silent github.com/iqb-berlin/${APP_NAME}/archive/${TARGET_TAG}.tar.gz | \
+    tar --extract --gunzip --directory config/keycloak --strip=3 ${APP_NAME}-${TARGET_TAG}/config/keycloak/themes/iqb
+
+  printf "Keycloak IQB theme download done!\n\n"
 }
 
 customize_settings() {
@@ -132,19 +141,19 @@ customize_settings() {
   cp .env.traefik.template .env.traefik
 
   # Setup environment variables
-  printf "5. Set Environment variables (default passwords are generated randomly):\n"
+  printf "6. Set Environment variables (default passwords are generated randomly):\n"
   source .env.traefik
 
   ## Version
   sed -i "s#IQB_TRAEFIK_VERSION_TAG.*#IQB_TRAEFIK_VERSION_TAG=$TARGET_TAG#" .env.traefik
 
   ## Server
-  printf "5.1 Server base domain name:\n"
+  printf "6.1 Server base domain name:\n"
   read -p "SERVER_NAME: " -er -i "${SERVER_NAME}" SERVER_NAME
   sed -i "s#SERVER_NAME.*#SERVER_NAME=$SERVER_NAME#" .env.traefik
 
   ## Ports
-  printf "\n5.2 Ports:\n"
+  printf "\n6.2 Ports:\n"
   read -p "HTTP_PORT: " -er -i "${HTTP_PORT}" HTTP_PORT
   sed -i "s#HTTP_PORT.*#HTTP_PORT=$HTTP_PORT#" .env.traefik
 
@@ -152,7 +161,7 @@ customize_settings() {
   sed -i "s#HTTPS_PORT.*#HTTPS_PORT=$HTTPS_PORT#" .env.traefik
 
   ## Network
-  printf "\n5.3 Network:\n"
+  printf "\n6.3 Network:\n"
   printf "Docker MTU have to be equal or less host network MTU!\n"
   printf "Current host network MTUs:\n"
   ip a | grep mtu | grep -v "lo:\|docker\|veth\|br-" | cut -f6- -d ' ' --complement
@@ -160,7 +169,7 @@ customize_settings() {
   sed -i "s#DOCKER_DAEMON_MTU.*#DOCKER_DAEMON_MTU=$DOCKER_DAEMON_MTU#" .env.traefik
 
   ## Super User
-  printf "\n5.4 Super User (admin of admins):\n"
+  printf "\n6.4 Super User (admin of admins):\n"
   read -p "ADMIN_NAME: " -er -i "${ADMIN_NAME}" ADMIN_NAME
   sed -i "s#ADMIN_NAME.*#ADMIN_NAME=$ADMIN_NAME#" .env.traefik
 
@@ -174,8 +183,8 @@ customize_settings() {
   ADMIN_CREATED_TIMESTAMP=$(date -u +"%s")000
   sed -i "s#ADMIN_CREATED_TIMESTAMP.*#ADMIN_CREATED_TIMESTAMP=$ADMIN_CREATED_TIMESTAMP#" .env.traefik
 
-  printf "\n5.5 OpenID Connect with OAuth2 Authentication:\n"
-  printf "5.5.1 Keycloak DB:\n"
+  printf "\n6.5 OpenID Connect with OAuth2 Authentication:\n"
+  printf "6.5.1 Keycloak DB:\n"
   read -p "POSTGRES_USER: " -er -i "${POSTGRES_USER}" POSTGRES_USER
   sed -i "s#POSTGRES_USER.*#POSTGRES_USER=$POSTGRES_USER#" .env.traefik
 
@@ -186,9 +195,9 @@ customize_settings() {
   read -p "POSTGRES_DB: " -er -i "${POSTGRES_DB}" POSTGRES_DB
   sed -i "s#POSTGRES_DB.*#POSTGRES_DB=$POSTGRES_DB#" .env.traefik
 
-  printf "\n5.5.2 OAuth2 Clients:\n"
+  printf "\n6.5.2 OAuth2 Clients:\n"
   printf "Client IDs will be BASE64 encoded.\n"
-  printf "\n5.5.2.1 Traefik Dashboard Client:\n"
+  printf "\n6.5.2.1 Traefik Dashboard Client:\n"
   read -p "TRAEFIK_CLIENT_ID: " -er -i "${TRAEFIK_CLIENT_ID}" TRAEFIK_CLIENT_ID
   TRAEFIK_CLIENT_ID=$(printf '%s' "${TRAEFIK_CLIENT_ID}" | openssl base64)
   sed -i "s#TRAEFIK_CLIENT_ID.*#TRAEFIK_CLIENT_ID=$TRAEFIK_CLIENT_ID#" .env.traefik
@@ -202,7 +211,7 @@ customize_settings() {
   read -p "TRAEFIK_EMAIL_DOMAIN: " -er -i "${TRAEFIK_EMAIL_DOMAIN}" TRAEFIK_EMAIL_DOMAIN
   sed -i "s#TRAEFIK_EMAIL_DOMAIN.*#TRAEFIK_EMAIL_DOMAIN=$TRAEFIK_EMAIL_DOMAIN#" .env.traefik
 
-  printf "\n5.5.2.2 Grafana Client:\n"
+  printf "\n6.5.2.2 Grafana Client:\n"
   read -p "GRAFANA_CLIENT_ID: " -er -i "${GRAFANA_CLIENT_ID}" GRAFANA_CLIENT_ID
   GRAFANA_CLIENT_ID=$(printf '%s' "${GRAFANA_CLIENT_ID}" | openssl base64)
   sed -i "s#GRAFANA_CLIENT_ID.*#GRAFANA_CLIENT_ID=$GRAFANA_CLIENT_ID#" .env.traefik
@@ -210,7 +219,7 @@ customize_settings() {
   GRAFANA_CLIENT_SECRET=$(tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 32 | head -n 1)
   sed -i "s#GRAFANA_CLIENT_SECRET.*#GRAFANA_CLIENT_SECRET=$GRAFANA_CLIENT_SECRET#" .env.traefik
 
-  printf "\n5.5.2.3 Prometheus Client:\n"
+  printf "\n6.5.2.3 Prometheus Client:\n"
   read -p "PROMETHEUS_CLIENT_ID: " -er -i "${PROMETHEUS_CLIENT_ID}" PROMETHEUS_CLIENT_ID
   PROMETHEUS_CLIENT_ID=$(printf '%s' "${PROMETHEUS_CLIENT_ID}" | openssl base64)
   sed -i "s#PROMETHEUS_CLIENT_ID.*#PROMETHEUS_CLIENT_ID=$PROMETHEUS_CLIENT_ID#" .env.traefik
@@ -224,7 +233,7 @@ customize_settings() {
   read -p "PROMETHEUS_EMAIL_DOMAIN: " -er -i "${PROMETHEUS_EMAIL_DOMAIN}" PROMETHEUS_EMAIL_DOMAIN
   sed -i "s#PROMETHEUS_EMAIL_DOMAIN.*#PROMETHEUS_EMAIL_DOMAIN=$PROMETHEUS_EMAIL_DOMAIN#" .env.traefik
 
-  printf "\n5.5.2.4 Node Exporter Client:\n"
+  printf "\n6.5.2.4 Node Exporter Client:\n"
   read -p "NODE_EXPORTER_CLIENT_ID: " -er -i "${NODE_EXPORTER_CLIENT_ID}" NODE_EXPORTER_CLIENT_ID
   NODE_EXPORTER_CLIENT_ID=$(printf '%s' "${NODE_EXPORTER_CLIENT_ID}" | openssl base64)
   sed -i "s#NODE_EXPORTER_CLIENT_ID.*#NODE_EXPORTER_CLIENT_ID=$NODE_EXPORTER_CLIENT_ID#" .env.traefik
@@ -238,7 +247,7 @@ customize_settings() {
   read -p "NODE_EXPORTER_EMAIL_DOMAIN: " -er -i "${NODE_EXPORTER_EMAIL_DOMAIN}" NODE_EXPORTER_EMAIL_DOMAIN
   sed -i "s#NODE_EXPORTER_EMAIL_DOMAIN.*#NODE_EXPORTER_EMAIL_DOMAIN=$NODE_EXPORTER_EMAIL_DOMAIN#" .env.traefik
 
-  printf "\n5.5.2.5 cAdvisor Client:\n"
+  printf "\n6.5.2.5 cAdvisor Client:\n"
   read -p "CADVISOR_CLIENT_ID: " -er -i "${CADVISOR_CLIENT_ID}" CADVISOR_CLIENT_ID
   CADVISOR_CLIENT_ID=$(printf '%s' "${CADVISOR_CLIENT_ID}" | openssl base64)
   sed -i "s#CADVISOR_CLIENT_ID.*#CADVISOR_CLIENT_ID=$CADVISOR_CLIENT_ID#" .env.traefik
@@ -252,7 +261,7 @@ customize_settings() {
   read -p "CADVISOR_EMAIL_DOMAIN: " -er -i "${CADVISOR_EMAIL_DOMAIN}" CADVISOR_EMAIL_DOMAIN
   sed -i "s#CADVISOR_EMAIL_DOMAIN.*#CADVISOR_EMAIL_DOMAIN=$CADVISOR_EMAIL_DOMAIN#" .env.traefik
 
-  printf "\n5.5.2.6 Dozzle Client:\n"
+  printf "\n6.5.2.6 Dozzle Client:\n"
   read -p "DOZZLE_CLIENT_ID: " -er -i "${DOZZLE_CLIENT_ID}" DOZZLE_CLIENT_ID
   DOZZLE_CLIENT_ID=$(printf '%s' "${DOZZLE_CLIENT_ID}" | openssl base64)
   sed -i "s#DOZZLE_CLIENT_ID.*#DOZZLE_CLIENT_ID=$DOZZLE_CLIENT_ID#" .env.traefik
@@ -355,6 +364,8 @@ main() {
   prepare_installation_dir
 
   download_files
+
+  download_keycloak_theme
 
   customize_settings
 
