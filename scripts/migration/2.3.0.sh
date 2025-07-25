@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 declare TARGET_VERSION="2.3.0"
 declare PROJECT_NAME
