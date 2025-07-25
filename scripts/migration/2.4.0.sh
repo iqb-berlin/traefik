@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
-declare TARGET_VERSION="2.3.0"
+declare TARGET_VERSION="2.4.0"
 declare PROJECT_NAME
+declare ARE_KEYCLOAK_SERVICES_UP=false
 
 start_keycloak() {
     printf "      Check Keycloak status: "
@@ -21,7 +22,7 @@ start_keycloak() {
         --file "${PWD}/docker-compose.traefik.yaml" \
         --file "${PWD}/docker-compose.traefik.prod.yaml" \
         up -d keycloak keycloak-db
-      sleep 15  # waiting keycloak started completely
+      sleep 30  # waiting keycloak started completely
       printf "      Keycloak started.\n\n"
     else
       printf "Keycloak is up.\n\n"
@@ -29,17 +30,22 @@ start_keycloak() {
     fi
 }
 
-delete_iqb_realm() {
-  printf "      Deleting IQB realm ...\n"
+set_iqb_theme_as_realm_default() {
+  printf "      Set IQB theme as default for monitoring realm ...\n"
   source .env.traefik
 
-  printf "      - " && docker exec -it "${PROJECT_NAME}-keycloak-1" \
-    /opt/keycloak/bin/kcadm.sh delete realms/iqb \
+   printf "      - " && docker exec -i "${PROJECT_NAME}-keycloak-1" \
+    /opt/keycloak/bin/kcadm.sh update realms/monitoring \
       --server http://localhost:8080 \
       --realm master \
-      --user ${ADMIN_NAME} \
-      --password ${ADMIN_PASSWORD}
-  printf "      IQB realm deleted.\n\n"
+      --user "${ADMIN_NAME}" \
+      --password "${ADMIN_PASSWORD}" \
+      --file - <<EOF
+{
+  "loginTheme": "iqb"
+}
+EOF
+  printf "      IQB theme setting done.\n\n"
 
 }
 
@@ -56,22 +62,14 @@ stop_keycloak() {
   fi
 }
 
-clean_up() {
-  printf "      Deleting IQB realm source files ...\n"
-  rm -f ${PROJECT_NAME}/config/keycloak/iqb-realm.config
-  rm -f ${PROJECT_NAME}/config/keycloak/iqb-realm.json
-  printf "      IQB realm source files deleted.\n\n"
-}
-
 main() {
-  PROJECT_NAME="$(basename ${PWD})"
+  PROJECT_NAME="$(basename "${PWD}")"
 
   printf "    Applying patch: %s ...\n" ${TARGET_VERSION}
 
   start_keycloak
-  delete_iqb_realm
+  set_iqb_theme_as_realm_default
   stop_keycloak
-  clean_up
 
   printf "    Patch %s applied.\n" ${TARGET_VERSION}
 }
