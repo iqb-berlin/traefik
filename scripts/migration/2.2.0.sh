@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 migrate_file_structure() {
   printf "Migrate application file structure ...\n"
