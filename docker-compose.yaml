@@ -60,9 +60,10 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       KEYCLOAK_EXTRA_ARGS_PREPENDED: "--spi-login-protocol-openid-connect-legacy-logout-redirect-uri=true"
     env_file:
-      - config/keycloak/monitoring-realm.config
+      - config/keycloak/import/monitoring-realm.config
     volumes:
-      - "./config/keycloak/monitoring-realm.json:/opt/keycloak/data/import/monitoring-realm.json"
+      - "./config/keycloak/export:/opt/keycloak/data/export"
+      - "./config/keycloak/import/monitoring-realm.json:/opt/keycloak/data/import/monitoring-realm.json"
       - "./config/keycloak/themes/iqb:/opt/keycloak/themes/iqb"
     networks:
       - application-network

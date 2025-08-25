@@ -84,7 +84,8 @@ prepare_installation_dir() {
 
   mkdir -p "$TARGET_DIR"/config/grafana/provisioning/dashboards
   mkdir -p "$TARGET_DIR"/config/grafana/provisioning/datasources
-  mkdir -p "$TARGET_DIR"/config/keycloak
+  mkdir -p "$TARGET_DIR"/config/keycloak/export
+  mkdir -p "$TARGET_DIR"/config/keycloak/import
   mkdir -p "$TARGET_DIR"/config/maintenance-page
   mkdir -p "$TARGET_DIR"/config/prometheus
   mkdir -p "$TARGET_DIR"/config/traefik
@@ -116,8 +117,8 @@ download_files() {
   download_file config/grafana/provisioning/dashboards/traefik_rev4.json config/grafana/provisioning/dashboards/traefik_rev4.json
   download_file config/grafana/provisioning/datasources/datasource.yaml config/grafana/provisioning/datasources/datasource.yaml
   download_file config/grafana/oauth2.config config/grafana/oauth2.config
-  download_file config/keycloak/monitoring-realm.config config/keycloak/monitoring-realm.config
-  download_file config/keycloak/monitoring-realm.json config/keycloak/monitoring-realm.json
+  download_file config/keycloak/import/monitoring-realm.config config/keycloak/import/monitoring-realm.config
+  download_file config/keycloak/import/monitoring-realm.json config/keycloak/import/monitoring-realm.json
   download_file config/maintenance-page/default.conf.template config/maintenance-page/default.conf.template
   download_file config/maintenance-page/maintenance.html config/maintenance-page/maintenance.html
   download_file config/prometheus/prometheus.yaml config/prometheus/prometheus.yaml
