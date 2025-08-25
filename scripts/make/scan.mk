@@ -13,18 +13,18 @@ TRIVY_VERSION := aquasec/trivy:latest
 
 include $(TRAEFIK_BASE_DIR)/.env.dev
 
-## exports all variables (especially those of the included .env.dev file!)
+# exports all variables (especially those of the included .env.dev file!)
 .EXPORT_ALL_VARIABLES:
 
-## prevents collisions of make target names with possible file names
+# prevents collisions of make target names with possible file names
 .PHONY: scan-all scan-traefik scan-nginx scan-keycloak scan-postgres scan-oauth2-proxy scan-grafana scan-prometheus\
 	scan-node-exporter scan-cadvisor scan-dozzle
 
-## scans infrastructure images for security vulnerabilities
+# scans infrastructure images for security vulnerabilities
 scan-all: scan-traefik scan-nginx scan-keycloak scan-postgres scan-oauth2-proxy scan-grafana scan-prometheus\
 	scan-node-exporter scan-cadvisor scan-dozzle
 
-## scans traefik image for security vulnerabilities
+# scans traefik image for security vulnerabilities
 scan-traefik:
 	docker run\
 			--rm\
@@ -48,7 +48,7 @@ scan-traefik:
 					--severity CRITICAL\
 				$(TRAEFIK_IMAGE)
 
-## scans nginx image for security vulnerabilities
+# scans nginx image for security vulnerabilities
 scan-nginx:
 	docker run\
 			--rm\
@@ -72,7 +72,7 @@ scan-nginx:
 					--severity CRITICAL\
 				$(NGINX_IMAGE)
 
-## scans keycloak image for security vulnerabilities
+# scans keycloak image for security vulnerabilities
 scan-keycloak:
 	docker run\
 			--rm\
@@ -96,7 +96,7 @@ scan-keycloak:
 					--severity CRITICAL\
 				$(KEYCLOAK_IMAGE)
 
-## scans postgres image for security vulnerabilities
+# scans postgres image for security vulnerabilities
 scan-postgres:
 	docker run\
 			--rm\
@@ -120,7 +120,7 @@ scan-postgres:
 					--severity CRITICAL\
 				$(POSTGRES_IMAGE)
 
-## scans oauth2-proxy image for security vulnerabilities
+# scans oauth2-proxy image for security vulnerabilities
 scan-oauth2-proxy:
 	docker run\
 			--rm\
@@ -145,7 +145,7 @@ scan-oauth2-proxy:
 				$(OAUTH2_PROXY_IMAGE)
 
 
-## scans grafana image for security vulnerabilities
+# scans grafana image for security vulnerabilities
 scan-grafana:
 	docker run\
 			--rm\
@@ -169,7 +169,7 @@ scan-grafana:
 					--severity CRITICAL\
 				$(GRAFANA_IMAGE)
 
-## scans prometheus image for security vulnerabilities
+# scans prometheus image for security vulnerabilities
 scan-prometheus:
 	docker run\
 			--rm\
@@ -193,7 +193,7 @@ scan-prometheus:
 					--severity CRITICAL\
 				$(PROMETHEUS_IMAGE)
 
-## scans node-exporter image for security vulnerabilities
+# scans node-exporter image for security vulnerabilities
 scan-node-exporter:
 	docker run\
 			--rm\
@@ -217,7 +217,7 @@ scan-node-exporter:
 					--severity CRITICAL\
 				$(NODE_EXPORTER_IMAGE)
 
-## scans cadvisor image for security vulnerabilities
+# scans cadvisor image for security vulnerabilities
 scan-cadvisor:
 	docker run\
 			--rm\
@@ -241,7 +241,7 @@ scan-cadvisor:
 					--severity CRITICAL\
 				$(CADVISOR_IMAGE)
 
-## scans dozzle image for security vulnerabilities
+# scans dozzle image for security vulnerabilities
 scan-dozzle:
 	docker run\
 			--rm\

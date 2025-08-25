@@ -1,20 +1,21 @@
 TRAEFIK_BASE_DIR := $(shell git rev-parse --show-toplevel)
+REALM := monitoring
 
 include $(TRAEFIK_BASE_DIR)/.env.traefik
 
 # exports all variables (especially those of the included .env.traefik file!)
 .EXPORT_ALL_VARIABLES:
 
-## prevents collisions of make target names with possible file names
+# prevents collisions of make target names with possible file names
 .PHONY: traefik-up traefik-down traefik-start traefik-stop traefik-status traefik-logs traefik-config\
 	traefik-system-prune traefik-volumes-prune traefik-images-clean traefik-connect-keycloak-db\
 	traefik-dump-keycloak-db-server traefik-restore-keycloak-db-server traefik-dump-keycloak-db\
-	traefik-restore-keycloak-db traefik-update
+	traefik-restore-keycloak-db traefik-export-keycloak-realm traefik-import-keycloak-realm traefik-update
 
-## disables printing the recipe of a make target before executing it
+# disables printing the recipe of a make target before executing it
 .SILENT: traefik-images-clean
 
-## Pull newest images, create and start docker containers
+# Pull newest images, create and start docker containers
 traefik-up:
 	@if\
 		! test -f $(TRAEFIK_BASE_DIR)/secrets/traefik/certs/certificate.pem ||\
@@ -43,7 +44,7 @@ traefik-up:
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 		up -d
 
-## Stop and remove docker containers
+# Stop and remove docker containers
 traefik-down:
 	docker compose\
 			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
@@ -51,8 +52,8 @@ traefik-down:
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 		down
 
-## Start docker containers
-# Param (optional): SERVICE - Start the specified service only, e.g. `make traefik-start SERVICE=grafana`
+# Start docker containers
+## Param (optional): SERVICE - Start the specified service only, e.g. `make traefik-start SERVICE=grafana`
 traefik-start:
 	docker compose\
 			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
@@ -60,7 +61,7 @@ traefik-start:
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 		start $(SERVICE)
 
-## Stop docker containers
+# Stop docker containers
 traefik-stop:
 	docker compose\
 			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
@@ -68,8 +69,8 @@ traefik-stop:
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 		stop $(SERVICE)
 
-## Show status of containers
-# Param (optional): SERVICE - Show status of the specified service only, e.g. `make traefik-status SERVICE=grafana`
+# Show status of containers
+## Param (optional): SERVICE - Show status of the specified service only, e.g. `make traefik-status SERVICE=grafana`
 traefik-status:
 	docker compose\
 			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
@@ -77,8 +78,8 @@ traefik-status:
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 		ps -a $(SERVICE)
 
-## Show service logs
-# Param (optional): SERVICE - Show log of the specified service only, e.g. `make traefik-logs SERVICE=grafana`
+# Show service logs
+## Param (optional): SERVICE - Show log of the specified service only, e.g. `make traefik-logs SERVICE=grafana`
 traefik-logs:
 	docker compose\
 			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
@@ -86,8 +87,8 @@ traefik-logs:
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 		logs -f $(SERVICE)
 
-## Show services configuration
-# Param (optional): SERVICE - Show config of the specified service only, e.g. `make traefik-config SERVICE=grafana`
+# Show services configuration
+## Param (optional): SERVICE - Show config of the specified service only, e.g. `make traefik-config SERVICE=grafana`
 traefik-config:
 	docker compose\
 			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
@@ -95,15 +96,15 @@ traefik-config:
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 		config $(SERVICE)
 
-## Remove unused dangling images, containers, networks, etc. Data volumes will stay untouched!
+# Remove unused dangling images, containers, networks, etc. Data volumes will stay untouched!
 traefik-system-prune:
 	docker system prune
 
-## Remove all anonymous local volumes not used by at least one container.
+# Remove all anonymous local volumes not used by at least one container.
 traefik-volumes-prune:
 	docker volume prune
 
-## Remove all unused (not just dangling) images!
+# Remove all unused (not just dangling) images!
 traefik-images-clean:
 	if test "$(shell docker images -f reference=postgres -q)"; then docker rmi $(shell docker images -f reference=postgres -q); fi
 	if test "$(shell docker images -f reference=*/keycloak -q)"; then docker rmi $(shell docker images -f reference=*/keycloak -q); fi
@@ -216,5 +217,49 @@ traefik-restore-keycloak-db: .EXPORT_ALL_VARIABLES
 					--if-exists\
 				/tmp/$(POSTGRES_DB)_dump
 
+# Exports keycloak realm 'monitoring'
+## Param (optional): REALM - Exports the specified realm, e.g. `make traefik-export-keycloak-realm REALM=master`
+## (https://www.keycloak.org/server/importExport)
+traefik-export-keycloak-realm:
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		down keycloak keycloak-db
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		run --rm --name traefik-keycloak-realm-export\
+			keycloak\
+				export --dir /opt/keycloak/data/export --realm $(REALM)
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		up --detach keycloak
+
+# Imports all keycloak realm content out of './config/keycloak/export' directory
+## (https://www.keycloak.org/server/importExport)
+traefik-import-keycloak-realm:
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		down keycloak keycloak-db
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		run --rm --name traefik-keycloak-realm-import\
+			keycloak\
+				import --dir /opt/keycloak/data/export
+	docker compose\
+			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
+			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
+		up --detach keycloak
+
+# Start application update procedure
 traefik-update:
 	bash $(TRAEFIK_BASE_DIR)/scripts/update.sh

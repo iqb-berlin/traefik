@@ -134,7 +134,8 @@ run_update_script_in_selected_version() {
 prepare_installation_dir() {
   mkdir -p ./config/grafana/provisioning/dashboards
   mkdir -p ./config/grafana/provisioning/datasources
-  mkdir -p ./config/keycloak
+  mkdir -p ./config/keycloak/export
+  mkdir -p ./config/keycloak/import
   mkdir -p ./config/maintenance-page
   mkdir -p ./config/prometheus
   mkdir -p ./config/traefik
@@ -441,8 +442,8 @@ check_config_files_modifications() {
   get_modified_file config/grafana/provisioning/dashboards/traefik_rev4.json config/grafana/provisioning/dashboards/traefik_rev4.json "conf-file"
   get_modified_file config/grafana/provisioning/datasources/datasource.yaml config/grafana/provisioning/datasources/datasource.yaml "conf-file"
   get_modified_file config/grafana/oauth2.config config/grafana/oauth2.config
-  get_modified_file config/keycloak/monitoring-realm.config config/keycloak/monitoring-realm.config
-  get_modified_file config/keycloak/monitoring-realm.json config/keycloak/monitoring-realm.json
+  get_modified_file config/keycloak/import/monitoring-realm.config config/keycloak/import/monitoring-realm.config
+  get_modified_file config/keycloak/import/monitoring-realm.json config/keycloak/import/monitoring-realm.json
   get_modified_file config/maintenance-page/default.conf.template config/maintenance-page/default.conf.template "conf-file"
   get_modified_file config/maintenance-page/maintenance.html config/maintenance-page/maintenance.html "conf-file"
   get_modified_file config/prometheus/prometheus.yaml config/prometheus/prometheus.yaml "conf-file"
