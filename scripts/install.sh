@@ -430,7 +430,7 @@ customize_settings() {
       printf "\nAn unsecure self-signed TLS certificate valid for 30 days will be generated ...\n"
       openssl req \
         -newkey rsa:2048 -nodes -subj "/CN=${SERVER_NAME}" -keyout "${APP_DIR}/secrets/traefik/certs/private_key.pem" \
-        -x509 -days 30 -out "${APP_DIR}/secrets/traefik/certs/certificate.pem"
+        -x509 -days 30 -out "${APP_DIR}/secrets/traefik/certs/certificate.pem" &>/dev/null
       printf "A self-signed certificate file and a private key file have been generated.\n"
 
     else
@@ -447,6 +447,48 @@ customize_settings() {
   printf "\n"
 }
 
+convert_bootstrap_to_permanent_admin() {
+  printf "8. Keycloak bootstrap administrator\n"
+  printf -- "- Convert bootstrap administrator to a permanent administrator ...\n"
+
+  # export keycloak master realm
+  docker compose \
+      --env-file ".env.${APP_NAME}" \
+      --file "docker-compose.${APP_NAME}.yaml" \
+      --file "docker-compose.${APP_NAME}.prod.yaml" \
+		run --rm --name traefik-keycloak-realm-export\
+			keycloak\
+				export --file /opt/keycloak/data/export/master-realm.json --realm master &>/dev/null
+	  docker compose \
+        --env-file ".env.${APP_NAME}" \
+        --file "docker-compose.${APP_NAME}.yaml" \
+        --file "docker-compose.${APP_NAME}.prod.yaml" \
+      down &>/dev/null
+
+	# Change "is_temporary_admin" to false
+  sed -i.bak 's|"is_temporary_admin" : \[ "true" \]|"is_temporary_admin" : \[ "false" \]|' \
+    config/keycloak/export/master-realm.json && rm config/keycloak/export/master-realm.json.bak
+
+  # import keycloak master realm
+  docker compose \
+      --env-file ".env.${APP_NAME}" \
+      --file "docker-compose.${APP_NAME}.yaml" \
+      --file "docker-compose.${APP_NAME}.prod.yaml" \
+		run --rm --name traefik-keycloak-realm-export\
+			keycloak\
+				import --file /opt/keycloak/data/export/master-realm.json &>/dev/null
+  docker compose \
+      --env-file ".env.${APP_NAME}" \
+      --file "docker-compose.${APP_NAME}.yaml" \
+      --file "docker-compose.${APP_NAME}.prod.yaml" \
+    down &>/dev/null
+
+  # delete master realm export
+  rm config/keycloak/export/master-realm.json
+
+  printf "Bootstrap administrator conversion done.\n\n"
+}
+
 application_start() {
   printf "'%s' installation done.\n\n" "${APP_NAME}"
 
@@ -454,9 +496,6 @@ application_start() {
     read -p "Do you want to start ${APP_NAME} now? [Y/n] " -er -n 1 is_start_now
     printf '\n'
     if [[ ! ${is_start_now} =~ [nN] ]]; then
-      if ! test "$(docker network ls -q --filter name=app-net)"; then
-        docker network create app-net
-      fi
       docker compose \
         --env-file ".env.${APP_NAME}" \
         --file "docker-compose.${APP_NAME}.yaml" \
@@ -492,6 +531,8 @@ main() {
 
     customize_settings
 
+    convert_bootstrap_to_permanent_admin
+
     application_start
 
   else
@@ -505,6 +546,8 @@ main() {
     download_keycloak_themes
 
     customize_settings
+
+    convert_bootstrap_to_permanent_admin
 
     application_start
 
