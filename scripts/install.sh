@@ -86,7 +86,7 @@ prepare_installation_dir() {
   mkdir -p "$TARGET_DIR"/config/traefik
   mkdir -p "$TARGET_DIR"/scripts/make
   mkdir -p "$TARGET_DIR"/scripts/migration
-  mkdir -p "$TARGET_DIR"/secrets/traefik
+  mkdir -p "$TARGET_DIR"/secrets/traefik/certs/acme
 
   cd "$TARGET_DIR"
 }
@@ -117,7 +117,9 @@ download_files() {
   download_file config/maintenance-page/default.conf.template config/maintenance-page/default.conf.template
   download_file config/maintenance-page/maintenance.html config/maintenance-page/maintenance.html
   download_file config/prometheus/prometheus.yaml config/prometheus/prometheus.yaml
-  download_file config/traefik/tls-config.yaml config/traefik/tls-config.yaml
+  download_file config/traefik/tls-acme.yaml config/traefik/tls-acme.yaml
+  download_file config/traefik/tls-certificates.yaml config/traefik/tls-certificates.yaml
+  download_file config/traefik/tls-options.yaml config/traefik/tls-options.yaml
   download_file scripts/make/traefik.mk scripts/make/prod.mk
   download_file scripts/update_${APP_NAME}.sh scripts/update.sh
   chmod +x scripts/update_${APP_NAME}.sh
@@ -274,24 +276,47 @@ customize_settings() {
     printf "include %s/scripts/make/traefik.mk\n" "$TARGET_DIR" >Makefile
   fi
 
-  # Generate TLS files
-  printf "\n"
-  read -p "6. Do you have a TLS certificate and private key? [y/N] " -er -n 1 IS_TLS
-  if [[ ! $IS_TLS =~ ^[yY]$ ]]; then
-    printf "\nAn unsecure self-signed TLS certificate valid for 30 days will be generated ...\n"
-    openssl req \
-      -newkey rsa:2048 -nodes -subj "/CN=$SERVER_NAME" -keyout "$TARGET_DIR"/secrets/traefik/privkey.pem \
-      -x509 -days 30 -out "$TARGET_DIR"/secrets/traefik/certificate.pem
-    printf "A self-signed certificate file and a private key file have been generated.\n"
+  ## TLS Certificate Resolver Configuration
+  printf "\n6 TLS Configuration:\n"
+  printf "6.1 Automatic Certificate Management Environment (ACME):\n"
+  read -p "Do you want to use an ACME-Provider like 'Let's encrypt' or 'Sectigo' instead of user-defined certificates? [Y/n]: " -r -n 1 -e TLS
+  if [[ ! $TLS =~ ^[nN]$ ]]; then
+    sed -i.bak "s|TLS_CERTIFICATE_RESOLVER.*|TLS_CERTIFICATE_RESOLVER=acme|" .env.traefik && rm .env.traefik.bak
 
+    read -p "TLS_ACME_CA_SERVER: " -er -i "${TLS_ACME_CA_SERVER}" TLS_ACME_CA_SERVER
+    sed -i.bak "s|TLS_ACME_CA_SERVER.*|TLS_ACME_CA_SERVER=${TLS_ACME_CA_SERVER}|" .env.traefik && rm .env.traefik.bak
+
+    read -p "TLS_ACME_EAB_KID: " -er -i "${TLS_ACME_EAB_KID}" TLS_ACME_EAB_KID
+    sed -i.bak "s|TLS_ACME_EAB_KID.*|TLS_ACME_EAB_KID=${TLS_ACME_EAB_KID}|" .env.traefik && rm .env.traefik.bak
+
+    read -p "TLS_ACME_EAB_HMAC_ENCODED: " -er -i "${TLS_ACME_EAB_HMAC_ENCODED}" TLS_ACME_EAB_HMAC_ENCODED
+    sed -i.bak "s|TLS_ACME_EAB_HMAC_ENCODED.*|TLS_ACME_EAB_HMAC_ENCODED=${TLS_ACME_EAB_HMAC_ENCODED}|" .env.traefik &&
+      rm .env.traefik.bak
+
+    read -p "TLS_ACME_EMAIL: " -er -i "${TLS_ACME_EMAIL}" TLS_ACME_EMAIL
+    sed -i.bak "s|TLS_ACME_EMAIL.*|TLS_ACME_EMAIL=${TLS_ACME_EMAIL}|" .env.traefik && rm .env.traefik.bak
   else
-    printf "Generated certificate placeholder file.\nReplace this text with real content if necessary.\n" \
-      >"$TARGET_DIR"/secrets/traefik/certificate.pem
-    printf "Generated key placeholder file.\nReplace this text with real content if necessary.\n" \
-      >"$TARGET_DIR"/secrets/traefik/privkey.pem
-    printf "\nA certificate placeholder file and a private key placeholder file have been generated.\n"
-    printf "Please replace the content of the placeholder files 'secrets/traefik/certificate.pem' "
-    printf "and 'secrets/traefik/privkey.pem' with your existing certificate and private key!\n"
+    sed -i.bak "s|TLS_CERTIFICATE_RESOLVER.*|TLS_CERTIFICATE_RESOLVER=|" .env.traefik && rm .env.traefik.bak
+
+    # Generate TLS files
+    printf "\n6.2 User-defined certificates:\n"
+    read -p "Do you have a user-defined TLS certificate and private key? [y/N] " -er -n 1 IS_TLS
+    if [[ ! $IS_TLS =~ ^[yY]$ ]]; then
+      printf "\nAn unsecure self-signed TLS certificate valid for 30 days will be generated ...\n"
+      openssl req \
+        -newkey rsa:2048 -nodes -subj "/CN=$SERVER_NAME" -keyout "$TARGET_DIR"/secrets/traefik/certs/private_key.pem \
+        -x509 -days 30 -out "$TARGET_DIR"/secrets/traefik/certs/certificate.pem
+      printf "A self-signed certificate file and a private key file have been generated.\n"
+
+    else
+      printf "Generated certificate placeholder file.\nReplace this text with real content if necessary.\n" \
+        >"$TARGET_DIR"/secrets/traefik/certs/certificate.pem
+      printf "Generated key placeholder file.\nReplace this text with real content if necessary.\n" \
+        >"$TARGET_DIR"/secrets/traefik/certs/private_key.pem
+      printf "\nA certificate placeholder file and a private key placeholder file have been generated.\n"
+      printf "Please replace the content of the placeholder files 'secrets/traefik/certs/certificate.pem' "
+      printf "and 'secrets/traefik/certs/private_key.pem' with your existing certificate and private key!\n"
+    fi
   fi
 
   printf "\n"
