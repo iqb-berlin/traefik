@@ -6,7 +6,7 @@ x-logging-options: &default-logging-options
 
 services:
   traefik:
-    image: traefik:2.11
+    image: traefik:v3.4
     restart: always
     ports:
       - "${HTTP_PORT}:80"
@@ -17,7 +17,7 @@ services:
       - application-network
 
   traefik-oauth2-proxy:
-    image: &oauth2-proxy-image quay.io/oauth2-proxy/oauth2-proxy:v7.5.1
+    image: &oauth2-proxy-image quay.io/oauth2-proxy/oauth2-proxy:v7.9.0
     restart: always
     depends_on:
       - traefik
@@ -37,12 +37,17 @@ services:
       - application-network
 
   keycloak:
-    image: quay.io/keycloak/keycloak:22.0
+    image: quay.io/keycloak/keycloak:26.3
     restart: always
     depends_on:
       keycloak-db:
         condition: service_healthy
-    command: [ 'start', '--proxy=edge', '--import-realm' ]
+    command: [
+      'start',
+      '--proxy-headers', 'xforwarded',
+      '--http-enabled', 'true',
+      '--import-realm'
+    ]
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-db/${POSTGRES_DB}
@@ -51,19 +56,20 @@ services:
       KC_HOSTNAME: keycloak.${SERVER_NAME}
       KC_HEALTH_ENABLED: 'true'
       KC_METRICS_ENABLED: 'true'
-      KEYCLOAK_ADMIN: ${ADMIN_NAME}
-      KEYCLOAK_ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${ADMIN_NAME}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       KEYCLOAK_EXTRA_ARGS_PREPENDED: "--spi-login-protocol-openid-connect-legacy-logout-redirect-uri=true"
     env_file:
-      - config/keycloak/monitoring-realm.config
+      - config/keycloak/import/monitoring-realm.config
     volumes:
-      - "./config/keycloak/monitoring-realm.json:/opt/keycloak/data/import/monitoring-realm.json"
+      - "./config/keycloak/export:/opt/keycloak/data/export"
+      - "./config/keycloak/import/monitoring-realm.json:/opt/keycloak/data/import/monitoring-realm.json"
       - "./config/keycloak/themes/iqb:/opt/keycloak/themes/iqb"
     networks:
       - application-network
 
   keycloak-db:
-    image: postgres:14.8-bookworm
+    image: postgres:14-bookworm
     restart: always
     healthcheck:
       test: [ "CMD", "pg_isready", "-q", "-d", "${POSTGRES_DB}", "-U", "${POSTGRES_USER}" ]
@@ -84,7 +90,7 @@ services:
       - application-network
 
   grafana:
-    image: grafana/grafana:9.5.1
+    image: grafana/grafana:12.0.2
     restart: always
     depends_on:
       - prometheus
@@ -99,7 +105,7 @@ services:
       <<: *default-logging-options
 
   prometheus:
-    image: prom/prometheus:v2.43.0
+    image: prom/prometheus:v3.5.0
     restart: always
     depends_on:
       - cadvisor
@@ -127,7 +133,7 @@ services:
       mode: global
 
   node-exporter:
-    image: prom/node-exporter:v1.6.1
+    image: prom/node-exporter:v1.9.1
     volumes:
       - "/proc:/host/proc:ro"
       - "/sys:/host/sys:ro"
@@ -163,7 +169,7 @@ services:
       mode: global
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
     restart: always
     privileged: true
     command:
@@ -199,7 +205,7 @@ services:
       mode: global
 
   dozzle:
-    image: amir20/dozzle:v4.11.2
+    image: amir20/dozzle:v8.13
     restart: always
     environment:
       DOZZLE_LEVEL: info
