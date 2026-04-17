@@ -16,10 +16,17 @@ x-env-oauth2-proxy: &env-oauth2-proxy
 
 services:
   traefik:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik-ui.entrypoints=traefik"
+      - "traefik.http.routers.traefik-ui.rule=Host(`traefik.${SERVER_NAME}`)"
+      - "traefik.http.routers.traefik-ui.service=api@internal"
+      - "traefik.docker.network=app-net"
     command:
       - "--global.checknewversion=false"
       - "--global.sendAnonymousUsage=false"
       - "--entrypoints.web.address=:80"
+      - "--entrypoints.traefik.address=:8080"
       - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
       - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
       - "--entrypoints.websecure.address=:443"
@@ -29,7 +36,6 @@ services:
       - "--providers.file.filename=/tls-options.yaml"
       - "--providers.file.filename=/tls-${TLS_CERTIFICATE_RESOLVER:-certificates}.yaml"
       - "--api.dashboard=true"
-      - "--api.insecure=true"
       - "--metrics.prometheus=true"
       - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
       - "--log.level=INFO"
