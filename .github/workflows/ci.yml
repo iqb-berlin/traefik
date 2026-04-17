@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+
+jobs:
+  lint-and-validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install yamllint
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Lint YAML files
+        run: yamllint .
+
+      - name: Lint shell scripts
+        run: find scripts -type f -name "*.sh" -print0 | xargs -0 -r shellcheck -e SC1091
+
+      - name: Validate Docker Compose (dev)
+        env:
+          TRAEFIK_CLIENT_ID: traefik-oauth
+          TRAEFIK_CLIENT_SECRET: change_me
+          PROMETHEUS_CLIENT_ID: prometheus-oauth
+          PROMETHEUS_CLIENT_SECRET: change_me
+          NODE_EXPORTER_CLIENT_ID: node-exporter-oauth
+          NODE_EXPORTER_CLIENT_SECRET: change_me
+          CADVISOR_CLIENT_ID: cadvisor-oauth
+          CADVISOR_CLIENT_SECRET: change_me
+          DOZZLE_CLIENT_ID: dozzle-oauth
+          DOZZLE_CLIENT_SECRET: change_me
+        run: docker compose --env-file .env.dev config -q
+
+      - name: Validate Docker Compose (production)
+        run: |
+          cp .env.traefik.template .env.traefik
+          docker compose -f docker-compose.traefik.yaml -f docker-compose.traefik.prod.yaml --env-file .env.traefik config -q
