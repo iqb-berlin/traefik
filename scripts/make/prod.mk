@@ -1,6 +1,6 @@
 TRAEFIK_BASE_DIR := $(shell git rev-parse --show-toplevel)
 UID := $(shell id -u)
-REALM := monitoring
+REALM ?= monitoring
 
 include $(TRAEFIK_BASE_DIR)/.env.traefik
 
