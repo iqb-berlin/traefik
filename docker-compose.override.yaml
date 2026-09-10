@@ -77,7 +77,7 @@ services:
   node-exporter:
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.cadvisor.entrypoints=web, traefik"
+      - "traefik.http.routers.node-exporter.entrypoints=web, traefik"
       - "traefik.http.routers.node-exporter.rule=Host(`node-exporter.${SERVER_NAME}`)"
       - "traefik.http.routers.node-exporter.service=node-exporter"
       - "traefik.http.services.node-exporter.loadbalancer.server.port=9100"
