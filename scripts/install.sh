@@ -456,7 +456,7 @@ convert_bootstrap_to_permanent_admin() {
       --env-file ".env.${APP_NAME}" \
       --file "docker-compose.${APP_NAME}.yaml" \
       --file "docker-compose.${APP_NAME}.prod.yaml" \
-		run --rm --name traefik-keycloak-realm-export\
+		run --rm --name traefik-keycloak-realm-export --user "$(id -u):0" \
 			keycloak\
 				export --file /opt/keycloak/data/export/master-realm.json --realm master &>/dev/null
 	  docker compose \
@@ -474,7 +474,7 @@ convert_bootstrap_to_permanent_admin() {
       --env-file ".env.${APP_NAME}" \
       --file "docker-compose.${APP_NAME}.yaml" \
       --file "docker-compose.${APP_NAME}.prod.yaml" \
-		run --rm --name traefik-keycloak-realm-export\
+		run --rm --name traefik-keycloak-realm-export --user "$(id -u):0" \
 			keycloak\
 				import --file /opt/keycloak/data/export/master-realm.json &>/dev/null
   docker compose \

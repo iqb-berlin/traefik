@@ -1,4 +1,5 @@
 TRAEFIK_BASE_DIR := $(shell git rev-parse --show-toplevel)
+UID := $(shell id -u)
 REALM := monitoring
 
 include $(TRAEFIK_BASE_DIR)/.env.traefik
@@ -230,7 +231,7 @@ traefik-export-keycloak-realm:
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
 			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
-		run --rm --name traefik-keycloak-realm-export\
+		run --rm --name traefik-keycloak-realm-export --user $(UID):0\
 			keycloak\
 				export --dir /opt/keycloak/data/export --realm $(REALM)
 	docker compose\
@@ -251,7 +252,7 @@ traefik-import-keycloak-realm:
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
 			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
-		run --rm --name traefik-keycloak-realm-import\
+		run --rm --name traefik-keycloak-realm-import --user $(UID):0\
 			keycloak\
 				import --dir /opt/keycloak/data/export
 	docker compose\
