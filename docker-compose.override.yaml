@@ -10,7 +10,7 @@ services:
       - "traefik.http.middlewares.maintenance-page.errors.query=/"
     command:
       - "--global.checknewversion=false"
-      - "--global.sendAnonymousUsage: false"
+      - "--global.sendAnonymousUsage=false"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.traefik.address=:8080"
       - "--providers.docker=true"
