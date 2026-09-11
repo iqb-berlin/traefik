@@ -1,6 +1,6 @@
 TRAEFIK_BASE_DIR := $(shell git rev-parse --show-toplevel)
 UID := $(shell id -u)
-REALM := monitoring
+REALM ?= monitoring
 
 include $(TRAEFIK_BASE_DIR)/.env.traefik
 
@@ -17,6 +17,8 @@ include $(TRAEFIK_BASE_DIR)/.env.traefik
 .SILENT: traefik-images-clean
 
 # Pull newest images, create and start docker containers
+## Param (optional): SERVICE - Pull images for, create and start the specified service (and all dependent services) only,
+## e.g. `make traefik-up SERVICE=traefik`
 traefik-up:
 	@if\
 		! test -f $(TRAEFIK_BASE_DIR)/secrets/traefik/certs/certificate.pem ||\
@@ -38,20 +40,22 @@ traefik-up:
 			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
 			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
-		pull
+		pull $(SERVICE)
 	docker compose\
 			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
 			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
-		up -d
+		up -d $(SERVICE)
 
 # Stop and remove docker containers
+## Param (optional): SERVICE - Stop and remove the specified service (and all dependent services) only,
+## `make traefik-down SERVICE=traefik`
 traefik-down:
 	docker compose\
 			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
 			-f $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
-		down
+		down $(SERVICE)
 
 # Start docker containers
 ## Param (optional): SERVICE - Start the specified service only, e.g. `make traefik-start SERVICE=grafana`

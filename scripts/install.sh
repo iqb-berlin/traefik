@@ -213,7 +213,7 @@ customize_settings() {
 
   # Setup environment variables
   printf "6. Docker environment setup\n"
-  printf "Default passwords are generated randomly.\n\n"
+  printf "Default passwords and secrets are generated randomly.\n\n"
 
   ## Version
   sed -i.bak "s|^IQB_TRAEFIK_VERSION_TAG=.*|IQB_TRAEFIK_VERSION_TAG=${TARGET_VERSION}|" \
