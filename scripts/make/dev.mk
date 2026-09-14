@@ -8,12 +8,16 @@ TRAEFIK_BASE_DIR := $(shell git rev-parse --show-toplevel)
 .SILENT: dev-volumes-clean dev-images-clean
 
 # Create and start all docker containers
+## Param (optional): SERVICE - Create and start the specified service (and all dependent services) only,
+## e.g. `make dev-up SERVICE=traefik`
 dev-up:
-	docker compose --env-file $(TRAEFIK_BASE_DIR)/.env.dev up -d
+	docker compose --env-file $(TRAEFIK_BASE_DIR)/.env.dev up -d $(SERVICE)
 
 # Stop and remove all docker containers, preserve data volumes
+## Param (optional): SERVICE - Stop and remove the specified service (and all dependent services) only,
+## `make dev-down SERVICE=traefik`
 dev-down:
-	docker compose --env-file $(TRAEFIK_BASE_DIR)/.env.dev down
+	docker compose --env-file $(TRAEFIK_BASE_DIR)/.env.dev down $(SERVICE)
 
 # Start docker containers
 ## Param (optional): SERVICE - Start the specified service only, e.g. `make dev-start SERVICE=grafana`
