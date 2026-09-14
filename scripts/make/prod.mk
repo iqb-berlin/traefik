@@ -235,7 +235,7 @@ traefik-export-keycloak-realm:
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
 			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
-		run --rm --name traefik-keycloak-realm-export --user $(UID):0\
+		run --rm --name traefik-keycloak-realm-export --user $(UID):0 --env KC_HOSTNAME=localhost\
 			keycloak\
 				export --dir /opt/keycloak/data/export --realm $(REALM)
 	docker compose\
@@ -256,7 +256,7 @@ traefik-import-keycloak-realm:
 			--env-file $(TRAEFIK_BASE_DIR)/.env.traefik\
 			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.yaml\
 			--file $(TRAEFIK_BASE_DIR)/docker-compose.traefik.prod.yaml\
-		run --rm --name traefik-keycloak-realm-import --user $(UID):0\
+		run --rm --name traefik-keycloak-realm-import --user $(UID):0 --env KC_HOSTNAME=localhost\
 			keycloak\
 				import --dir /opt/keycloak/data/export
 	docker compose\
